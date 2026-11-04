@@ -2,8 +2,10 @@ import { useCallback, useState } from 'react';
 import * as Lucide from 'lucide-react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { propertyApi, adminApi } from '../../lib/api/pms';
+import type { PropertyDetails, PropertyTypeKey } from '../../lib/api/pms';
 import { useApiResource } from '../../lib/api/useApiResource';
 import { toast } from '../../utils/toast';
+import { to12Hour, to24Hour } from '../../utils/time';
 import { displayApiError } from '../../lib/api/client';
 import { useTheme } from '../../theme/useTheme';
 import { PRESET_LIST } from '../../theme/presets';
@@ -22,6 +24,27 @@ type SettingsTab =
   | 'notifications'
   | 'advanced';
 
+/** Property Type options that exist on the backend; "Boutique Hotel" has no equivalent yet. */
+const PROPERTY_TYPE_LABELS: Record<PropertyTypeKey, string> = {
+  HOTEL: 'Hotel',
+  RESORT: 'Resort',
+  VILLA: 'Villa',
+  MOTEL: 'Motel',
+  APARTMENT: 'Apartment',
+};
+
+const CURRENCY_OPTIONS = [
+  'INR - Indian Rupee (₹)',
+  'USD - US Dollar ($)',
+  'EUR - Euro (€)',
+  'GBP - British Pound (£)',
+  'AED - UAE Dirham (AED)',
+];
+
+/** The option label for an ISO code, e.g. "INR" -> "INR - Indian Rupee (₹)". */
+const currencyLabel = (code: string): string =>
+  CURRENCY_OPTIONS.find((option) => option.startsWith(`${code} `)) ?? code;
+
 interface AmenityItem {
   id: string;
   label: string;
@@ -35,24 +58,26 @@ export function Settings({
   onOpenThemes?: () => void;
   initialTab?: SettingsTab;
 }) {
-  const { me, can } = useAuth();
+  const { me, can, reload } = useAuth();
+  const activePropertyId = me?.activePropertyId;
   const { preset, setPreset } = useTheme();
+  // The backend only lets administrators change property details, so everyone
+  // else gets the General tab read-only instead of a Save that would be refused.
+  const canEditProperty =
+    me?.user.propertyMemberships.find((m) => m.propertyId === me.activePropertyId)?.role.key === 'admin';
 
   // Load active property & taxes
   const loadSettings = useCallback(async () => {
-    const [properties, taxRules] = await Promise.all([
-      can('property.read') ? propertyApi.list() : Promise.resolve([]),
+    const [property, taxRules] = await Promise.all([
+      can('property.read') && activePropertyId ? propertyApi.get(activePropertyId) : Promise.resolve(null),
       can('invoice.read') ? adminApi.taxRules() : Promise.resolve([]),
     ]);
-    return {
-      property: properties.find((p) => p.id === me?.activePropertyId) ?? null,
-      taxRules,
-    };
-  }, [can, me?.activePropertyId]);
+    return { property, taxRules };
+  }, [can, activePropertyId]);
 
   const resource = useApiResource(loadSettings);
   const property = resource.data?.property;
-  const currencyCode = property?.currencyCode ?? 'INR';
+  const currencyCode = property?.defaultCurrency ?? 'INR';
 
   const [activeTab, setActiveTab] = useState<SettingsTab>(
     initialTab === 'rooms-rates' ? 'room-settings' : initialTab
@@ -63,9 +88,7 @@ export function Settings({
   const [propertyName, setPropertyName] = useState('The Grand Horizon Hotel');
   const [propertyCode, setPropertyCode] = useState('TGH');
   const [propertyType, setPropertyType] = useState('Hotel');
-  const [starRating, setStarRating] = useState('4');
   const [addressLine1, setAddressLine1] = useState('123 Beach Road');
-  const [addressLine2, setAddressLine2] = useState('Marine Drive');
   const [city, setCity] = useState('Mumbai');
   const [stateProvince, setStateProvince] = useState('Maharashtra');
   const [country, setCountry] = useState('India');
@@ -110,16 +133,37 @@ export function Settings({
     { id: 'pets', label: 'Pet Friendly', checked: false },
   ]);
 
+  // Fill the form from the property. Fields the backend has no value for show
+  // empty rather than a sample value. Time zone, date format and amenities are
+  // not stored on the backend yet, so they keep their local defaults.
+  const applyProperty = (p: PropertyDetails) => {
+    setPropertyName(p.name);
+    setPropertyCode(p.code);
+    setPropertyType(PROPERTY_TYPE_LABELS[p.type]);
+    setAddressLine1(p.address ?? '');
+    setCity(p.city);
+    setStateProvince(p.state ?? '');
+    setCountry(p.country);
+    setPostalCode(p.postalCode ?? '');
+    setPhone(p.phone ?? '');
+    setEmail(p.email ?? '');
+    setWebsite(p.website ?? '');
+    setFrontDeskPhone(p.frontDeskPhone ?? '');
+    setReservationsEmail(p.reservationsEmail ?? '');
+    setGeneralEmail(p.generalEmail ?? '');
+    setEmergencyPhone(p.emergencyContact ?? '');
+    setCheckInTime(to12Hour(p.checkInTime));
+    setCheckOutTime(to12Hour(p.checkOutTime));
+    setCurrency(currencyLabel(p.defaultCurrency));
+    setFloors(p.numberOfFloors?.toString() ?? '');
+    setTotalRooms(p.totalRooms?.toString() ?? '');
+    setDescription(p.description ?? '');
+  };
+
   // Sync initial API data when loaded
   const [hasInitialized, setHasInitialized] = useState(false);
   if (property && !hasInitialized) {
-    if (property.name) setPropertyName(property.name);
-    if (property.addressLine1) setAddressLine1(property.addressLine1);
-    if (property.city) setCity(property.city);
-    if (property.currencyCode) setCurrency(`${property.currencyCode}`);
-    if (property.timezone) setTimeZone(property.timezone);
-    if (property.checkInTime) setCheckInTime(property.checkInTime);
-    if (property.checkOutTime) setCheckOutTime(property.checkOutTime);
+    applyProperty(property);
     setHasInitialized(true);
   }
 
@@ -127,61 +171,75 @@ export function Settings({
   const activeTax = resource.data?.taxRules.find((rule) => rule.isActive);
   const [taxRate, setTaxRate] = useState<number>(Number(activeTax?.ratePercent ?? 12));
 
-  // Save handler for backend-wired fields
-  const handleSaveBasic = async () => {
+  // One save for the whole General tab; only the backend-wired fields are persisted.
+  const handleSaveAll = async () => {
     if (!me?.activePropertyId) {
-      toast('Basic information saved locally', { tone: 'success' });
+      toast('Settings saved locally', { tone: 'success' });
       return;
     }
+    const type = (Object.keys(PROPERTY_TYPE_LABELS) as PropertyTypeKey[]).find(
+      (key) => PROPERTY_TYPE_LABELS[key] === propertyType,
+    );
+    if (!type) {
+      toast('Property type not supported yet', {
+        detail: `"${propertyType}" cannot be saved. Choose Hotel, Resort, Villa, Motel or Apartment.`,
+        tone: 'warning',
+      });
+      return;
+    }
+    const checkIn = to24Hour(checkInTime);
+    const checkOut = to24Hour(checkOutTime);
+    if (!checkIn || !checkOut) {
+      toast('Check the check-in and check-out times', {
+        detail: 'Use a time like 02:00 PM or 14:00.',
+        tone: 'warning',
+      });
+      return;
+    }
+    const counts = [floors, totalRooms].map((value) => (value.trim() === '' ? null : Number(value)));
+    if (counts.some((count) => count !== null && !Number.isInteger(count))) {
+      toast('Check the number of floors and total rooms', { detail: 'Use whole numbers.', tone: 'warning' });
+      return;
+    }
+    // Blank optional fields are sent as null so they are cleared on the server.
+    const optional = (value: string) => (value.trim() === '' ? null : value.trim());
+
     setSaving(true);
     try {
-      await propertyApi.update(me.activePropertyId, {
+      const saved = await propertyApi.update(me.activePropertyId, {
         name: propertyName,
-        addressLine1,
+        code: propertyCode,
+        type,
+        description: optional(description),
+        address: optional(addressLine1),
         city,
+        state: optional(stateProvince),
+        country,
+        postalCode: optional(postalCode),
+        phone: optional(phone),
+        frontDeskPhone: optional(frontDeskPhone),
+        emergencyContact: optional(emergencyPhone),
+        email: optional(email),
+        generalEmail: optional(generalEmail),
+        reservationsEmail: optional(reservationsEmail),
+        website: optional(website),
+        checkInTime: checkIn,
+        checkOutTime: checkOut,
+        defaultCurrency: currency.split(' ')[0] ?? currency,
+        numberOfFloors: counts[0] ?? null,
+        totalRooms: counts[1] ?? null,
       });
+      // Show what the server stored (it upper-cases the code, lower-cases emails),
+      // and refresh the header and other screens that show the property.
+      applyProperty(saved);
       resource.refresh();
-      toast('Basic Information saved successfully', { tone: 'success' });
+      await reload();
+      toast('Settings saved successfully', { tone: 'success' });
     } catch (err) {
-      toast('Could not save basic information', { detail: displayApiError(err), tone: 'danger' });
+      toast('Could not save settings', { detail: displayApiError(err), tone: 'danger' });
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleSaveContact = () => {
-    toast('Contact Information updated successfully', { tone: 'success' });
-  };
-
-  const handleSaveOperations = async () => {
-    if (!me?.activePropertyId) {
-      toast('Operational Settings saved locally', { tone: 'success' });
-      return;
-    }
-    setSaving(true);
-    try {
-      const code = currency.split(' ')[0] ?? 'INR';
-      await propertyApi.update(me.activePropertyId, {
-        currencyCode: code,
-        timezone: timeZone,
-        checkInTime,
-        checkOutTime,
-      });
-      resource.refresh();
-      toast('Operational settings saved successfully', { tone: 'success' });
-    } catch (err) {
-      toast('Could not save operational settings', { detail: displayApiError(err), tone: 'danger' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveDescription = () => {
-    toast('Property description updated', { tone: 'success' });
-  };
-
-  const handleSaveAmenities = () => {
-    toast('Amenities & facilities updated', { tone: 'success' });
   };
 
   const toggleAmenity = (id: string) => {
@@ -236,6 +294,17 @@ export function Settings({
             </p>
           </div>
         </div>
+        {activeTab === 'general' && (
+          <Button variant="primary"
+            type="button"
+            onClick={() => void handleSaveAll()}
+            disabled={saving || !canEditProperty}
+            title={canEditProperty ? undefined : 'Only administrators can change property details'}
+            className="w-fit disabled:opacity-50"
+          >
+            Save Changes
+          </Button>
+        )}
       </div>
 
       {/* ================= HORIZONTAL TABS BAR ================= */}
@@ -269,6 +338,12 @@ export function Settings({
 
       {/* ================= GENERAL TAB CONTENT (MATCHING SCREENSHOT 1:1) ================= */}
       {activeTab === 'general' && (
+        // A disabled fieldset disables every input, select, textarea and button inside it.
+        <fieldset
+          disabled={!canEditProperty}
+          title={canEditProperty ? undefined : 'Only administrators can change property details'}
+          className="m-0 min-w-0 border-0 p-0"
+        >
         <div className="flex flex-col gap-5">
           {/* ================= TOP SECTION: Basic Information (2/3) + Logo & Images (1/3) ================= */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -288,14 +363,6 @@ export function Settings({
                       <p className="text-label text-ink-muted mt-0.5">Core details about your property</p>
                     </div>
                   </div>
-                  <Button variant="primary"
-                    type="button"
-                    onClick={() => void handleSaveBasic()}
-                    disabled={saving}
-                    className="flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
-                  >
-                    Save Changes
-                  </Button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -347,62 +414,15 @@ export function Settings({
                     </SelectField>
                   </div>
 
-                  {/* Star Rating */}
-                  <div className="sm:col-span-2 lg:col-span-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-label font-medium text-ink mb-1.5">
-                          Star Rating
-                        </label>
-                        <div
-                          className="flex items-center justify-between rounded-md border px-3.5 py-2"
-                          style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
-                        >
-                          <div className="flex items-center gap-1 text-warning-text">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <IconButton variant="plain"
-                                key={star}
-                                type="button"
-                                onClick={() => setStarRating(String(star))}
-                                className="focus:outline-none transition-transform hover:scale-110"
-                              >
-                                <Lucide.Star
-                                  size={18}
-                                  className={star <= Number(starRating) ? 'fill-warning-text text-warning-text' : 'text-ink-muted/30'}
-                                />
-                              </IconButton>
-                            ))}
-                          </div>
-                          <span className="text-label font-medium text-ink-secondary">
-                            {starRating} Star Luxury
-                          </span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-label font-medium text-ink mb-1.5">
-                          Address Line 1
-                        </label>
-                        <TextField
-                          type="text"
-                          value={addressLine1}
-                          onChange={(e) => setAddressLine1(e.target.value)}
-                          className="w-full focus:outline-none focus:ring-2"
-                          style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Address Line 2 */}
+                  {/* Address Line 1 */}
                   <div className="sm:col-span-2 lg:col-span-4">
                     <label className="block text-label font-medium text-ink mb-1.5">
-                      Address Line 2
+                      Address Line 1
                     </label>
                     <TextField
                       type="text"
-                      value={addressLine2}
-                      onChange={(e) => setAddressLine2(e.target.value)}
+                      value={addressLine1}
+                      onChange={(e) => setAddressLine1(e.target.value)}
                       className="w-full focus:outline-none focus:ring-2"
                       style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
                     />
@@ -613,13 +633,6 @@ export function Settings({
                       <p className="text-label text-ink-muted mt-0.5">Public contact details for guests</p>
                     </div>
                   </div>
-                  <Button variant="primary"
-                    type="button"
-                    onClick={handleSaveContact}
-                    className="flex items-center gap-1.5 cursor-pointer transition-all"
-                  >
-                    Save Changes
-                  </Button>
                 </div>
 
                 <div className="flex flex-col gap-3">
@@ -698,14 +711,6 @@ export function Settings({
                       <p className="text-label text-ink-muted mt-0.5">Configure key operational details</p>
                     </div>
                   </div>
-                  <Button variant="primary"
-                    type="button"
-                    onClick={() => void handleSaveOperations()}
-                    disabled={saving}
-                    className="flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
-                  >
-                    Save Changes
-                  </Button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -775,11 +780,12 @@ export function Settings({
                       className="w-full focus:outline-none focus:ring-2"
                       style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
                     >
-                      <option>INR - Indian Rupee (₹)</option>
-                      <option>USD - US Dollar ($)</option>
-                      <option>EUR - Euro (€)</option>
-                      <option>GBP - British Pound (£)</option>
-                      <option>AED - UAE Dirham (AED)</option>
+                      {/* A saved currency outside the list still shows up as the selection. */}
+                      {(CURRENCY_OPTIONS.includes(currency) ? CURRENCY_OPTIONS : [currency, ...CURRENCY_OPTIONS]).map(
+                        (option) => (
+                          <option key={option}>{option}</option>
+                        ),
+                      )}
                     </SelectField>
                   </div>
 
@@ -896,12 +902,6 @@ export function Settings({
                     <h2 className="text-body font-semibold text-ink">Property Description</h2>
                     <p className="text-label text-ink-secondary mt-0.5">This description is shown to guests on booking channels</p>
                   </div>
-                  <Button variant="primary"
-                    type="button"
-                    onClick={handleSaveDescription}
-                  >
-                    Save Changes
-                  </Button>
                 </div>
 
                 {/* Rich text formatting bar */}
@@ -942,12 +942,6 @@ export function Settings({
                     <h2 className="text-body font-semibold text-ink">Amenities & Facilities</h2>
                     <p className="text-label text-ink-secondary mt-0.5">Select amenities available at your property</p>
                   </div>
-                  <Button variant="primary"
-                    type="button"
-                    onClick={handleSaveAmenities}
-                  >
-                    Save Changes
-                  </Button>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -1035,6 +1029,7 @@ export function Settings({
             </div>
           </div>
         </div>
+        </fieldset>
       )}
 
       {/* ================= POLICIES TAB ================= */}

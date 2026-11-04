@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import * as Lucide from 'lucide-react';
 import { useApiResource } from '../../../lib/api/useApiResource';
-import { loadRoomInventory } from '../../../lib/api/loaders';
+import { roomTypeApi } from '../../../lib/api/pms';
+import type { RoomTypeDetails } from '../../../lib/api/pms';
+import { useAuth } from '../../auth/AuthContext';
 import { toast } from '../../../utils/toast';
 import { Button } from '../../../components/primitives';
 import type {
@@ -69,9 +71,14 @@ const SECTIONS: SectionTabItem[] = GROUPS.flatMap((g) => g.items);
 export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
   const [activeSection, setActiveSection] = useState<RoomSettingsSectionId>('room-types');
 
-  // Live Inventory Resource (Room Types & Rooms from backend/store)
-  const inventoryResource = useApiResource(() => loadRoomInventory());
-  const roomTypes = inventoryResource.data?.roomTypes ?? [];
+  // Room types come from the backend, scoped to the property being worked on.
+  const { me } = useAuth();
+  const propertyId = me?.activePropertyId;
+  const roomTypeResource = useApiResource(
+    () => (propertyId ? roomTypeApi.list(propertyId) : Promise.resolve<RoomTypeDetails[]>([])),
+    [propertyId],
+  );
+  const roomTypes = roomTypeResource.data ?? [];
 
   // Local state for all 6 modular sections
   const [categories, setCategories] = useState<RoomCategory[]>(INITIAL_CATEGORIES);
@@ -119,7 +126,7 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
     setOccupancyConfig(INITIAL_OCCUPANCY_CONFIG);
     setMaintenanceReasons(INITIAL_MAINTENANCE_REASONS);
     setStatuses(INITIAL_ROOM_STATUSES);
-    inventoryResource.refresh();
+    roomTypeResource.refresh();
     toast('Room settings restored to baseline', {
       detail: 'All 6 sections reset to standard property defaults.',
       tone: 'info',
@@ -240,11 +247,12 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
         >
           {activeSection === 'room-types' && (
             <RoomTypesSection
+              propertyId={propertyId ?? null}
               types={roomTypes}
               currencyCode={currencyCode}
-              loading={inventoryResource.loading}
-              error={inventoryResource.error}
-              onRefresh={() => inventoryResource.refresh()}
+              loading={roomTypeResource.loading}
+              error={roomTypeResource.error}
+              onRefresh={() => roomTypeResource.refresh()}
             />
           )}
 

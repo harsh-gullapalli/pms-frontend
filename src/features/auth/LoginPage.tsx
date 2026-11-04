@@ -5,13 +5,14 @@ import { useTheme } from '../../theme/useTheme';
 import { THEME_PRESETS } from '../../theme/presets';
 import { ThemeSwatcher } from '../../theme/ThemeSwatcher';
 import { Checkbox, FieldLabel } from '../../components/primitives';
+import { displayApiError } from '../../lib/api/client';
 import { toast } from '../../utils/toast';
 
 export function LoginPage() {
   const { login } = useAuth();
   const { preset } = useTheme();
-  const [email, setEmail] = useState('anaya.sharma@triponx.com');
-  const [password, setPassword] = useState('hotelpms2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,14 +22,14 @@ export function LoginPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       toast('Signed in successfully', {
         detail: 'Welcome to your PMS workspace.',
         tone: 'success',
       });
-    } catch {
+    } catch (error) {
       toast('Sign in failed', {
-        detail: 'Could not sign in to demo session.',
+        detail: displayApiError(error),
         tone: 'danger',
       });
     } finally {
@@ -203,8 +204,8 @@ export function LoginPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      toast('Static Demo Notice', {
-                        detail: 'No credentials needed. Click Sign In to enter directly.',
+                      toast('Password reset', {
+                        detail: 'Ask your property administrator to reset your password.',
                         tone: 'info',
                       })
                     }
