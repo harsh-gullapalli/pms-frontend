@@ -1,0 +1,311 @@
+import { useCallback, useMemo, useState } from 'react';
+import * as Lucide from 'lucide-react';
+import type { BadgeTone } from '../../utils/status';
+import type { Guest } from '../../types';
+import { Avatar, Badge, Card, CardTitle, TableContainer, TableActionBtn } from '../../components/ui';
+import { FilterChip, Pagination, Tabs } from '../../components/controls';
+import { inputClass } from '../../utils/styling';
+import { Field } from '../../components/controls';
+import { Modal } from '../../components/overlays';
+import { toast } from '../../utils/toast';
+import type { NavTarget } from '../../config/navigation';
+import { guestApi } from '../../lib/api/pms';
+import { guestFromApi } from '../../lib/api/adapters';
+import { useApiResource } from '../../lib/api/useApiResource';
+import { displayApiError } from '../../lib/api/client';
+import { formatCurrency } from '../../lib/api/format';
+import { Button } from '../../components/primitives';
+
+const PAGE_SIZE = 6;
+
+function tierTone(tier: string): BadgeTone {
+  if (tier === 'VIP') return 'warning';
+  if (tier === 'Gold') return 'info';
+  if (tier === 'Regular') return 'success';
+  return 'neutral';
+}
+
+function GuestProfile({ g, onClose, go, onSave }: { g: Guest; onClose: () => void; go: (t: NavTarget) => void; onSave: (patch: Record<string, unknown>) => Promise<void> }) {
+  const [tab, setTab] = useState<'overview' | 'stays' | 'payments' | 'notes'>('overview');
+  const [editing, setEditing] = useState(false);
+  const [phone, setPhone] = useState(g.phone);
+  const [prefs, setPrefs] = useState(g.preferences.join(', '));
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Avatar name={g.name} />
+        <div className="min-w-0 flex-1">
+          <p className="text-body font-semibold text-ink">{g.name}</p>
+          <p className="tnum font-mono text-label text-ink-secondary">{g.id} · {g.category}</p>
+        </div>
+        <Badge tone={tierTone(g.tier)}>{g.tier}</Badge>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+        {[[String(g.stays), 'Stays'], [g.spent > 0 ? formatCurrency(g.spent, 'INR') : '—', 'Lifetime'], [g.balance > 0 ? formatCurrency(g.balance, 'INR') : '—', 'Balance']].map(([v, k]) => (
+          <div key={k} className="rounded-control border p-2.5 sm:p-3" style={{ borderColor: 'var(--color-border)' }}>
+            <p className="tnum text-title font-bold text-ink">{v}</p>
+            <p className="text-label text-ink-secondary mt-0.5">{k}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3">
+        <Tabs label="Guest sections" tabs={[{ id: 'overview', label: 'Overview' }, { id: 'stays', label: 'Stays' }, { id: 'payments', label: 'Payments' }, { id: 'notes', label: 'Notes' }]} active={tab} onChange={setTab} />
+      </div>
+      <div className="mt-3 text-body">
+        {tab === 'overview' && (
+          <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {[['Email', g.email], ['Phone', editing ? '' : phone], ['Company', g.company ?? '—'], ['Last visit', g.lastVisit], ['Preferences', editing ? '' : (prefs || '—')]].map(([k, v]) => (
+              <div key={k} className="rounded-control border p-3" style={{ borderColor: 'var(--color-border)' }}>
+                <dt className="text-label font-medium text-ink-secondary mb-1">{k}</dt>
+                <dd className="text-body font-semibold text-ink">
+                  {editing && (k === 'Phone' || k === 'Preferences') ? (
+                    <input value={k === 'Phone' ? phone : prefs} onChange={(e) => (k === 'Phone' ? setPhone(e.target.value) : setPrefs(e.target.value))} className={inputClass()} aria-label={k} />
+                  ) : v}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {tab === 'stays' && (
+          <ul className="flex flex-col gap-2">
+            <p className="text-label text-ink-secondary py-2">{g.stays ? `${g.stays} stay(s) on record; stay details are not included in the guest endpoint.` : 'No stays on record.'}</p>
+          </ul>
+        )}
+        {tab === 'payments' && (
+          <ul className="flex flex-col gap-2">
+            <p className="text-label text-ink-secondary py-2">Guest-specific payment and invoice history is not exposed by the current API.</p>
+          </ul>
+        )}
+        {tab === 'notes' && (
+          <div className="rounded-control border p-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-muted-surface)' }}>
+            <p className="text-body text-ink">{g.notes || 'No notes yet.'}</p>
+            <p className="text-label text-ink-secondary mt-1">Communication history appears here in the connected build.</p>
+          </div>
+        )}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button variant="secondary" type="button" className="flex-1" onClick={() => {
+          if (!editing) { setEditing(true); return; }
+          void onSave({ phone, preferences: prefs }).then(() => setEditing(false)).catch(() => undefined);
+        }}>
+          {editing ? 'Save guest' : 'Edit guest'}
+        </Button>
+        <Button variant="secondary" type="button" className="flex-1" onClick={() => go({ view: 'new-reservation' })}>New reservation</Button>
+        <Button variant="primary" type="button" className="flex-1" onClick={() => go({ view: 'folios' })}>View folio</Button>
+      </div>
+      <Button variant="secondary" type="button" className="mt-2 w-full" onClick={onClose}>Back to directory</Button>
+    </div>
+  );
+}
+
+export function Guests({ initialQuery = '', focusId, go }: { initialQuery?: string; focusId?: string; go: (t: NavTarget) => void }) {
+  const loadGuests = useCallback(async () => (await guestApi.list('', 1, 100)).data.map(guestFromApi), []);
+  const resource = useApiResource(loadGuests);
+  const all = useMemo(() => resource.data ?? [], [resource.data]);
+  const [q, setQ] = useState(initialQuery);
+  const [tier, setTier] = useState('All');
+  const [sort, setSort] = useState<'name' | 'stays' | 'spent'>('name');
+  const [page, setPage] = useState(0);
+  const [openId, setOpenId] = useState<string | null>(focusId ?? null);
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const loadProfile = useCallback(() => openId ? guestApi.get(openId).then(guestFromApi) : Promise.resolve(null), [openId]);
+  const profileResource = useApiResource(loadProfile, [openId]);
+  const profile = profileResource.data;
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return [...all]
+      .filter((g) => (tier === 'All' || g.tier === tier) && (!needle || g.name.toLowerCase().includes(needle) || g.id.toLowerCase().includes(needle) || g.phone.includes(needle)))
+      .sort((a, b) => (sort === 'name' ? a.name.localeCompare(b.name) : sort === 'stays' ? b.stays - a.stays : b.spent - a.spent));
+  }, [all, q, tier, sort]);
+
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safe = Math.min(page, pages - 1);
+  const slice = filtered.slice(safe * PAGE_SIZE, safe * PAGE_SIZE + PAGE_SIZE);
+  const openGuest = all.find((g) => g.id === openId) ?? null;
+
+  const addGuest = () => {
+    if (name.trim().length < 2 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) || phone.trim().length < 6) {
+      toast('Check the form', { detail: 'Name, valid email and phone are required.', tone: 'warning' });
+      return;
+    }
+    const parts = name.trim().split(/\s+/);
+    void guestApi.create({ firstName: parts[0], lastName: parts.slice(1).join(' ') || 'Guest', email: email.trim(), phone: phone.trim() })
+      .then((created) => {
+        const guest = guestFromApi(created);
+        setAdding(false);
+        setName(''); setEmail(''); setPhone('');
+        setOpenId(guest.id);
+        resource.refresh();
+        toast('Guest added', { detail: `${guest.name} was saved.`, tone: 'success' });
+      })
+      .catch((error: unknown) => toast('Could not add guest', { detail: displayApiError(error), tone: 'danger' }));
+  };
+
+  if (openGuest && !profile && profileResource.loading) {
+    return <Card><p className="pms-helper">Loading guest profile…</p></Card>;
+  }
+
+  if (openGuest && profile) {
+    return (
+      <Card>
+        <GuestProfile g={profile} onClose={() => setOpenId(null)} go={go} onSave={async (patch) => {
+          try {
+            const updated = await guestApi.update(openGuest.id, patch);
+            void updated;
+            profileResource.refresh();
+            resource.refresh();
+            toast('Guest saved', { detail: 'Guest profile updated.', tone: 'success' });
+          } catch (error) {
+            toast('Could not update guest', { detail: displayApiError(error), tone: 'danger' });
+            throw error;
+          }
+        }} />
+      </Card>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-start gap-3">
+
+
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary"
+            type="button"
+            onClick={() => resource.refresh()}
+            className="flex items-center gap-1.5 cursor-pointer transition-colors"
+            title="Refresh directory"
+          >
+            <Lucide.RefreshCw size={13} className={resource.loading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
+          </Button>
+          <Button variant="primary"
+            type="button"
+            onClick={() => setAdding(true)}
+            className="flex items-center gap-1.5 cursor-pointer transition-all"
+          >
+            <Lucide.Plus size={15} strokeWidth={2.4} />
+            <span>Add Guest</span>
+          </Button>
+        </div>
+      </div>
+
+      <Card>
+        <CardTitle
+          icon={Lucide.Contact2}
+          iconBg="bg-gradient-to-tr from-primary to-dark-accent text-white shadow-xs shadow-primary/20"
+          title="Guest Directory"
+          subtitle={resource.loading ? 'Loading guest directory…' : `${filtered.length} of ${all.length} guests`}
+          badge={
+            <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-micro font-bold text-primary border border-primary/30">
+              {all.length} Profiles
+            </span>
+          }
+        />
+        {resource.error ? <p role="alert" className="pms-helper">Could not load guests: {resource.error}</p> : null}
+        <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-4">
+          <input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Name, ID or phone…" aria-label="Search guests" className={inputClass('text-label')} />
+          <select value={sort} onChange={(e) => setSort(e.target.value as never)} aria-label="Sort guests" className={inputClass('text-label')}>
+            <option value="name">Sort: name</option>
+            <option value="stays">Sort: most stays</option>
+            <option value="spent">Sort: lifetime value</option>
+          </select>
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by tier">
+            {['All', 'VIP', 'Gold', 'Regular', 'New'].map((t) => (
+              <FilterChip key={t} active={tier === t} onClick={() => { setTier(t); setPage(0); }}>{t}</FilterChip>
+            ))}
+          </div>
+          <Button variant="secondary" type="button"  onClick={() => { setQ(''); setTier('All'); setSort('name'); setPage(0); }}>Clear</Button>
+        </div>
+        <TableContainer>
+          <table className="pms-table min-w-[760px]">
+            <thead>
+              <tr>
+                <th className="w-12 text-center text-label font-semibold">#</th>
+                <th className="text-label font-semibold">GUEST NAME</th>
+                <th className="text-label font-semibold">CONTACT</th>
+                <th className="text-label font-semibold">COMPANY</th>
+                <th className="text-label font-semibold">TIER</th>
+                <th className="text-right text-label font-semibold">STAYS</th>
+                <th className="text-right text-label font-semibold">BOOKINGS</th>
+                <th className="text-label font-semibold">LAST VISIT</th>
+                <th className="text-right text-label font-semibold">ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {slice.map((g, idx) => (
+                <tr key={g.id}>
+                  <td className="text-center font-medium text-ink-secondary text-label">
+                    {safe * PAGE_SIZE + idx + 1}
+                  </td>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={g.name} size={36} />
+                      <div>
+                        <span className="block font-semibold text-ink text-label">{g.name}</span>
+                        <span className="tnum block font-mono text-label text-ink-secondary">{g.id}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span className="block text-ink text-label">{g.email}</span>
+                    <span className="tnum block text-label text-ink-secondary">{g.phone}</span>
+                  </td>
+                  <td>
+                    <span className="text-ink text-label">{g.company ?? '—'}</span>
+                  </td>
+                  <td>
+                    <Badge tone={tierTone(g.tier)}>{g.tier}</Badge>
+                  </td>
+                  <td className="tnum text-right font-medium text-ink text-label">
+                    {g.stays}
+                  </td>
+                  <td className="tnum text-right font-bold text-ink text-label">
+                    {g.stays}
+                  </td>
+                  <td>
+                    <span className="text-ink-secondary text-label">{g.lastVisit}</span>
+                  </td>
+                  <td className="text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <TableActionBtn
+                        icon={Lucide.Eye}
+                        title={`View details for ${g.name}`}
+                        onClick={() => setOpenId(g.id)}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {slice.length === 0 ? <p className="pms-helper py-8 text-center text-label text-ink-secondary">No guests match.</p> : null}
+        </TableContainer>
+        <div className="mt-4 pt-1">
+          <Pagination
+            page={safe}
+            totalPages={pages}
+            onChange={setPage}
+            summary={`Showing ${filtered.length > 0 ? safe * PAGE_SIZE + 1 : 0} to ${Math.min((safe + 1) * PAGE_SIZE, filtered.length)} of ${filtered.length} guests`}
+          />
+        </div>
+        <Modal open={adding} onClose={() => setAdding(false)} title="Add guest" subtitle="Saved to the guest directory">
+          <div className="flex flex-col gap-3">
+            <Field label="Full name"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jordan Miles" className={inputClass('text-body')} /></Field>
+            <Field label="Email"><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jordan@mail.com" inputMode="email" className={inputClass('text-body')} /></Field>
+            <Field label="Phone"><input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555 010 2030" inputMode="tel" className={inputClass('text-body')} /></Field>
+            <Button variant="primary" type="button"  onClick={addGuest}>Add guest</Button>
+          </div>
+        </Modal>
+      </Card>
+    </div>
+  );
+}
