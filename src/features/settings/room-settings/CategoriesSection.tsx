@@ -123,7 +123,6 @@ export function CategoriesSection({ categories, onChange }: CategoriesSectionPro
       <Card>
         <CardTitle
           title="Room Categories & Architectural Classifications"
-          subtitle="Single, Double, Twin, King, Connecting, Accessible (ADA), and suite classifications"
           icon={Lucide.LayoutGrid}
           action={
             <Button
@@ -158,9 +157,6 @@ export function CategoriesSection({ categories, onChange }: CategoriesSectionPro
                 <th className="w-12 text-center">CODE</th>
                 <th>CLASSIFICATION NAME</th>
                 <th>BED CONFIGURATION</th>
-                <th className="text-center">MAX GUESTS</th>
-                <th>ACCESSIBILITY TIER</th>
-                <th className="text-center">ROOMS</th>
                 <th className="text-center">STATUS</th>
                 <th className="text-right">ACTIONS</th>
               </tr>
@@ -175,36 +171,12 @@ export function CategoriesSection({ categories, onChange }: CategoriesSectionPro
                   </td>
                   <td className="py-3">
                     <span className="block font-bold text-ink text-label">{cat.name}</span>
-                    <span className="block max-w-[260px] truncate text-label text-ink-muted mt-0.5">
-                      {cat.description}
-                    </span>
                   </td>
                   <td className="text-label text-ink-secondary py-3">
                     <div className="flex items-center gap-1.5 font-medium text-ink">
                       <Lucide.BedDouble size={13} className="text-ink-muted" />
                       <span>{cat.bedSetup}</span>
                     </div>
-                  </td>
-                  <td className="text-center tnum text-label font-bold text-ink py-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted-surface">
-                      <Lucide.Users size={12} className="text-ink-secondary" />
-                      {cat.maxGuests}
-                    </span>
-                  </td>
-                  <td className="py-3">
-                    <span
-                      className={`inline-flex items-center gap-1 text-micro font-semibold px-2 py-0.5 rounded-full ${
-                        cat.accessibilityTier.includes('ADA')
-                          ? 'bg-warning-bg text-warning-text border border-warning-border'
-                          : 'bg-muted-surface text-ink-secondary'
-                      }`}
-                    >
-                      {cat.accessibilityTier.includes('ADA') && <Lucide.Accessibility size={11} />}
-                      {cat.accessibilityTier}
-                    </span>
-                  </td>
-                  <td className="text-center tnum text-label font-bold text-ink py-3">
-                    {cat.roomCount}
                   </td>
                   <td className="text-center py-3">
                     <Badge tone={cat.active ? 'success' : 'neutral'} dot size="sm">
@@ -239,7 +211,7 @@ export function CategoriesSection({ categories, onChange }: CategoriesSectionPro
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-label text-ink-muted">
+                  <td colSpan={5} className="py-8 text-center text-label text-ink-muted">
                     No categories found matching &quot;{search}&quot;.
                   </td>
                 </tr>

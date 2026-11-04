@@ -6,39 +6,27 @@ import { toast } from '../../../utils/toast';
 import { Button } from '../../../components/primitives';
 import type {
   Building,
-  ConnectingRoomPair,
   FloorLevel,
   MaintenanceReasonItem,
   OccupancyConfig,
-  RoomAmenityItem,
-  RoomAttributeItem,
   RoomCategory,
-  RoomOperationalConfig,
   RoomSettingsSectionId,
   RoomStatusDefinition,
 } from './types';
 import {
-  INITIAL_AMENITIES,
-  INITIAL_ATTRIBUTES,
   INITIAL_BUILDINGS,
   INITIAL_CATEGORIES,
-  INITIAL_CONNECTING_PAIRS,
   INITIAL_FLOORS,
   INITIAL_MAINTENANCE_REASONS,
   INITIAL_OCCUPANCY_CONFIG,
-  INITIAL_OPERATIONAL_CONFIG,
   INITIAL_ROOM_STATUSES,
 } from './initialData';
 import { RoomTypesSection } from './RoomTypesSection';
 import { CategoriesSection } from './CategoriesSection';
 import { FloorsBuildingsSection } from './FloorsBuildingsSection';
 import { OccupancyCapacitySection } from './OccupancyCapacitySection';
-import { AmenitiesSection } from './AmenitiesSection';
-import { AttributesSection } from './AttributesSection';
-import { OperationalRulesSection } from './OperationalRulesSection';
 import { MaintenanceReasonsSection } from './MaintenanceReasonsSection';
 import { StatusConfigSection } from './StatusConfigSection';
-import { ConnectingRoomsSection } from './ConnectingRoomsSection';
 
 interface SectionTabItem {
   id: RoomSettingsSectionId;
@@ -59,21 +47,17 @@ const GROUPS: SectionGroup[] = [
       { id: 'room-types', label: 'Room Types', shortLabel: 'Types', icon: Lucide.BedDouble },
       { id: 'categories', label: 'Categories', shortLabel: 'Categories', icon: Lucide.Boxes },
       { id: 'floors-buildings', label: 'Floors & Buildings', shortLabel: 'Floors', icon: Lucide.Building2 },
-      { id: 'connecting-rooms', label: 'Connecting Rooms', shortLabel: 'Linked', icon: Lucide.Link2 },
     ],
   },
   {
     title: 'Guest experience',
     items: [
       { id: 'occupancy', label: 'Occupancy & Capacity', shortLabel: 'Capacity', icon: Lucide.Users2 },
-      { id: 'amenities', label: 'Amenities', shortLabel: 'Amenities', icon: Lucide.Sparkles },
-      { id: 'attributes', label: 'Attributes', shortLabel: 'Attributes', icon: Lucide.Sliders },
     ],
   },
   {
     title: 'Operations',
     items: [
-      { id: 'operations', label: 'Operational Rules', shortLabel: 'Rules', icon: Lucide.Clock },
       { id: 'maintenance-reasons', label: 'Maintenance Reasons', shortLabel: 'Reasons', icon: Lucide.Wrench },
       { id: 'status-config', label: 'Status Configuration', shortLabel: 'Status', icon: Lucide.Activity },
     ],
@@ -89,17 +73,13 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
   const inventoryResource = useApiResource(() => loadRoomInventory());
   const roomTypes = inventoryResource.data?.roomTypes ?? [];
 
-  // Local state for all 10 modular sections
+  // Local state for all 6 modular sections
   const [categories, setCategories] = useState<RoomCategory[]>(INITIAL_CATEGORIES);
   const [buildings, setBuildings] = useState<Building[]>(INITIAL_BUILDINGS);
   const [floors, setFloors] = useState<FloorLevel[]>(INITIAL_FLOORS);
   const [occupancyConfig, setOccupancyConfig] = useState<OccupancyConfig>(INITIAL_OCCUPANCY_CONFIG);
-  const [amenities, setAmenities] = useState<RoomAmenityItem[]>(INITIAL_AMENITIES);
-  const [attributes, setAttributes] = useState<RoomAttributeItem[]>(INITIAL_ATTRIBUTES);
-  const [operationalConfig, setOperationalConfig] = useState<RoomOperationalConfig>(INITIAL_OPERATIONAL_CONFIG);
   const [maintenanceReasons, setMaintenanceReasons] = useState<MaintenanceReasonItem[]>(INITIAL_MAINTENANCE_REASONS);
   const [statuses, setStatuses] = useState<RoomStatusDefinition[]>(INITIAL_ROOM_STATUSES);
-  const [connectingPairs, setConnectingPairs] = useState<ConnectingRoomPair[]>(INITIAL_CONNECTING_PAIRS);
 
   const [isSavingAll, setIsSavingAll] = useState(false);
 
@@ -114,18 +94,10 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
         return `${buildings.length}b / ${floors.length}f`;
       case 'occupancy':
         return `${occupancyConfig.maxTotalOccupancy} max`;
-      case 'amenities':
-        return amenities.filter((a) => a.active).length;
-      case 'attributes':
-        return attributes.filter((a) => a.active).length;
-      case 'operations':
-        return `${operationalConfig.turnaroundBufferMinutes}m`;
       case 'maintenance-reasons':
         return maintenanceReasons.length;
       case 'status-config':
         return statuses.length;
-      case 'connecting-rooms':
-        return connectingPairs.length;
     }
   };
 
@@ -145,15 +117,11 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
     setBuildings(INITIAL_BUILDINGS);
     setFloors(INITIAL_FLOORS);
     setOccupancyConfig(INITIAL_OCCUPANCY_CONFIG);
-    setAmenities(INITIAL_AMENITIES);
-    setAttributes(INITIAL_ATTRIBUTES);
-    setOperationalConfig(INITIAL_OPERATIONAL_CONFIG);
     setMaintenanceReasons(INITIAL_MAINTENANCE_REASONS);
     setStatuses(INITIAL_ROOM_STATUSES);
-    setConnectingPairs(INITIAL_CONNECTING_PAIRS);
     inventoryResource.refresh();
     toast('Room settings restored to baseline', {
-      detail: 'All 10 sections reset to standard property defaults.',
+      detail: 'All 6 sections reset to standard property defaults.',
       tone: 'info',
     });
   };
@@ -304,29 +272,6 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
             />
           )}
 
-          {activeSection === 'amenities' && (
-            <AmenitiesSection
-              amenities={amenities}
-              currencyCode={currencyCode}
-              onChange={setAmenities}
-            />
-          )}
-
-          {activeSection === 'attributes' && (
-            <AttributesSection
-              attributes={attributes}
-              onChange={setAttributes}
-            />
-          )}
-
-          {activeSection === 'operations' && (
-            <OperationalRulesSection
-              config={operationalConfig}
-              currencyCode={currencyCode}
-              onChange={setOperationalConfig}
-            />
-          )}
-
           {activeSection === 'maintenance-reasons' && (
             <MaintenanceReasonsSection
               reasons={maintenanceReasons}
@@ -338,14 +283,6 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
             <StatusConfigSection
               statuses={statuses}
               onChange={setStatuses}
-            />
-          )}
-
-          {activeSection === 'connecting-rooms' && (
-            <ConnectingRoomsSection
-              pairs={connectingPairs}
-              currencyCode={currencyCode}
-              onChange={setConnectingPairs}
             />
           )}
         </div>

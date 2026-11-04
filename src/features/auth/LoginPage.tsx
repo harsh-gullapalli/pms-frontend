@@ -23,26 +23,7 @@ export function LoginPage() {
     try {
       await login(email, password);
       toast('Signed in successfully', {
-        detail: 'Welcome to Grand Horizon Hotel PMS workspace.',
-        tone: 'success',
-      });
-    } catch {
-      toast('Sign in failed', {
-        detail: 'Could not sign in to demo session.',
-        tone: 'danger',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleQuickDemo = async (demoEmail: string) => {
-    setEmail(demoEmail);
-    setIsSubmitting(true);
-    try {
-      await login(demoEmail, password);
-      toast('Signed in successfully', {
-        detail: 'Welcome to Grand Horizon Hotel PMS workspace.',
+        detail: 'Welcome to your PMS workspace.',
         tone: 'success',
       });
     } catch {
@@ -109,9 +90,6 @@ export function LoginPage() {
               {THEME_PRESETS[preset]?.name ?? 'Theme'}
             </span>
           </button>
-          <span className="rounded-full border border-border bg-surface/80 px-2.5 py-0.5 text-micro font-bold uppercase tracking-wider text-ink-secondary">
-            Static Demo
-          </span>
         </div>
       </header>
 
@@ -168,17 +146,6 @@ export function LoginPage() {
                 </div>
               </div>
             </div>
-
-            {/* Bottom active property card */}
-            <div className="mt-6 flex items-center gap-3 rounded-xl border border-border bg-page/60 p-2.5">
-              <div className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Lucide.Building2 size={16} />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-label font-bold text-ink">Grand Horizon Hotel</p>
-                <p className="truncate text-micro text-ink-muted">Active Demo Property · 48 Rooms</p>
-              </div>
-            </div>
           </section>
 
           {/* Right Login Form Pane */}
@@ -205,7 +172,7 @@ export function LoginPage() {
                 Sign In to Workspace
               </h1>
               <p className="mt-1 text-label text-ink-muted">
-                Static demo session: enter any email and password to proceed.
+                Enter your email and password to continue.
               </p>
             </header>
 
@@ -298,33 +265,6 @@ export function LoginPage() {
                   </>
                 )}
               </button>
-
-              {/* Demo Notice Banner */}
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-muted-surface/70 px-3 py-2 text-micro text-ink-secondary">
-                <Lucide.Sparkles size={14} className="text-primary flex-none" />
-                <span className="min-w-0">
-                  <strong>Static Demo Mode:</strong> No credentials required. Click <strong>Sign In</strong> directly.
-                </span>
-              </div>
-
-              {/* Quick Demo Sign-In Chips */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <span className="text-micro font-medium text-ink-muted">Quick login:</span>
-                <button
-                  type="button"
-                  onClick={() => void handleQuickDemo('anaya.sharma@triponx.com')}
-                  className="rounded-md border border-border bg-page px-2 py-0.5 text-micro font-semibold text-ink hover:bg-hover-surface cursor-pointer transition-colors"
-                >
-                  General Manager
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleQuickDemo('vikram.rao@triponx.com')}
-                  className="rounded-md border border-border bg-page px-2 py-0.5 text-micro font-semibold text-ink hover:bg-hover-surface cursor-pointer transition-colors"
-                >
-                  Front Desk
-                </button>
-              </div>
             </form>
           </section>
         </div>
@@ -333,7 +273,7 @@ export function LoginPage() {
       {/* ================= 3. BOTTOM FOOTER BAR ================= */}
       <footer className="relative z-10 flex flex-none flex-col sm:flex-row items-center justify-between gap-1 text-center sm:text-left text-micro text-ink-muted">
         <p className="tnum">
-          TriponX Hotel PMS · Single-Page Static Demo · Business Date: 2026-10-17
+          TriponX Hotel PMS
         </p>
         <p>© 2026 TriponX Systems. All rights reserved.</p>
       </footer>

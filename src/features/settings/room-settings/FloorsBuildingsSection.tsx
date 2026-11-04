@@ -216,7 +216,6 @@ export function FloorsBuildingsSection({
       <Card>
         <CardTitle
           title="Floor Plans & Elevator Zones"
-          subtitle="Configure floor naming, floor numbers, assigned room types, and keycard lift zones"
           icon={Lucide.Layers}
           action={
             <div className="flex items-center gap-2">
@@ -265,10 +264,7 @@ export function FloorsBuildingsSection({
               <tr>
                 <th className="w-12 text-center">LEVEL</th>
                 <th>FLOOR NAME</th>
-                <th>BUILDING / TOWER</th>
-                <th>WING / SECTION</th>
                 <th className="text-center">ROOMS</th>
-                <th>KEYCARD ELEVATOR ZONE</th>
                 <th className="text-center">STATUS</th>
                 <th className="text-right">ACTIONS</th>
               </tr>
@@ -283,28 +279,9 @@ export function FloorsBuildingsSection({
                   </td>
                   <td className="py-3">
                     <span className="block font-bold text-ink text-label">{fl.floorName}</span>
-                    <div className="flex flex-wrap gap-1 mt-0.5">
-                      {fl.assignedTypes.map((type, i) => (
-                        <span key={i} className="text-micro font-medium text-ink-muted bg-muted-surface px-1.5 py-0.2 rounded">
-                          {type}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="text-label font-semibold text-ink py-3">
-                    {fl.buildingName}
-                  </td>
-                  <td className="text-label text-ink-secondary py-3">
-                    {fl.wing}
                   </td>
                   <td className="text-center tnum text-label font-bold text-ink py-3">
                     {fl.totalRooms}
-                  </td>
-                  <td className="text-label text-ink-secondary py-3">
-                    <span className="inline-flex items-center gap-1 font-mono text-micro px-2 py-0.5 rounded bg-muted-surface border border-border">
-                      <Lucide.KeyRound size={11} className="text-ink-muted" />
-                      {fl.keycardZone}
-                    </span>
                   </td>
                   <td className="text-center py-3">
                     <Badge
@@ -342,7 +319,7 @@ export function FloorsBuildingsSection({
               ))}
               {filteredFloors.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-label text-ink-muted">
+                  <td colSpan={5} className="py-8 text-center text-label text-ink-muted">
                     No floor levels configured for this building.
                   </td>
                 </tr>
