@@ -1,42 +1,83 @@
 import { useMemo, useState } from 'react';
 import * as Lucide from 'lucide-react';
 import { formatCurrency } from '../../../lib/api/format';
-import { inventoryApi } from '../../../lib/api/pms';
+import { roomTypeApi } from '../../../lib/api/pms';
+import type { RoomTypeDetails, RoomTypeInput, RoomTypeStatus } from '../../../lib/api/pms';
 import { displayApiError } from '../../../lib/api/client';
 import { toast } from '../../../utils/toast';
+import type { BadgeTone } from '../../../utils/status';
 import { Button, IconButton, SelectField, TextArea, TextField } from '../../../components/primitives';
 import { Field } from '../../../components/controls';
 import { Modal } from '../../../components/overlays';
 import { Badge, Card, CardTitle, TableContainer } from '../../../components/ui';
-import type { RoomType } from '../../../types';
 import { StatStrip, StatTile } from './RoomSettingsKit';
 
 interface RoomTypesSectionProps {
-  types: RoomType[];
+  /** The property whose room types are managed; null until one is chosen. */
+  propertyId: string | null;
+  types: RoomTypeDetails[];
   currencyCode: string;
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
 }
 
-const EMPTY_ROOM_TYPE: RoomType = {
-  id: '',
+/** What the edit dialog works on. `id` is null while a new room type is being added. */
+interface RoomTypeForm extends RoomTypeInput {
+  id: string | null;
+  // The backend has no fields for these yet: they can be filled in but are not saved.
+  description: string;
+  maxChildren: number;
+  beds: string;
+  amenities: string;
+}
+
+const EMPTY_FORM: RoomTypeForm = {
+  id: null,
   name: '',
+  roomCount: 1,
+  capacity: 2,
+  baseRate: 4000,
+  status: 'ACTIVE',
   description: '',
-  count: 0,
-  maxOccupancy: 2,
-  maxAdults: 2,
   maxChildren: 1,
   beds: '1 King Bed',
-  baseRate: 4000,
-  amenities: ['Free Wi-Fi', 'AC', 'Smart TV'],
-  active: true,
+  amenities: 'Free Wi-Fi, AC, Smart TV',
 };
 
-const formatCapacity = (n: number, singular: string, plural: string) =>
-  `${n} ${n === 1 ? singular : plural}`;
+const STATUS_LABEL: Record<RoomTypeStatus, string> = {
+  ACTIVE: 'Active',
+  INACTIVE: 'Inactive',
+  MAINTENANCE: 'Maintenance',
+};
+
+const STATUS_TONE: Record<RoomTypeStatus, BadgeTone> = {
+  ACTIVE: 'success',
+  INACTIVE: 'neutral',
+  MAINTENANCE: 'warning',
+};
+
+type StatusFilter = 'all' | RoomTypeStatus;
+
+const NOT_SAVED_HINT = 'Not saved yet: the backend has no field for this';
+
+const formFromType = (t: RoomTypeDetails): RoomTypeForm => ({
+  id: t.id,
+  name: t.name,
+  roomCount: t.roomCount,
+  capacity: t.capacity,
+  baseRate: Number(t.baseRate),
+  status: t.status,
+  description: '',
+  maxChildren: 0,
+  beds: '',
+  amenities: '',
+});
+
+const isWhole = (n: number, min: number) => Number.isInteger(n) && n >= min;
 
 export function RoomTypesSection({
+  propertyId,
   types,
   currencyCode,
   loading,
@@ -44,98 +85,71 @@ export function RoomTypesSection({
   onRefresh,
 }: RoomTypesSectionProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [editing, setEditing] = useState<RoomType | null>(null);
-  const [amenText, setAmenText] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [editing, setEditing] = useState<RoomTypeForm | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const filteredTypes = useMemo(() => {
-    return types.filter((t) => {
-      const matchSearch =
-        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.id.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'active' && t.active) ||
-        (statusFilter === 'inactive' && !t.active);
-      return matchSearch && matchStatus;
-    });
+    const query = searchQuery.trim().toLowerCase();
+    return types.filter(
+      (t) =>
+        (!query || t.name.toLowerCase().includes(query)) &&
+        (statusFilter === 'all' || t.status === statusFilter),
+    );
   }, [types, searchQuery, statusFilter]);
 
-  const totalInventoryRooms = types.reduce((sum, t) => sum + (t.count ?? 0), 0);
-  const activeCount = types.filter((t) => t.active).length;
-  const lowestRate = types.length > 0 ? Math.min(...types.map((t) => t.baseRate)) : 0;
-  const highestRate = types.length > 0 ? Math.max(...types.map((t) => t.baseRate)) : 0;
+  const countByStatus = (status: RoomTypeStatus) => types.filter((t) => t.status === status).length;
+  const totalInventoryRooms = types.reduce((sum, t) => sum + t.roomCount, 0);
+  const rates = types.map((t) => Number(t.baseRate));
+  const lowestRate = rates.length > 0 ? Math.min(...rates) : 0;
+  const highestRate = rates.length > 0 ? Math.max(...rates) : 0;
 
-  const handleOpenAdd = () => {
-    setEditing({
-      ...EMPTY_ROOM_TYPE,
-      id: `rt-new-${Date.now().toString(36)}`,
-    });
-    setAmenText(EMPTY_ROOM_TYPE.amenities.join(', '));
-  };
-
-  const handleOpenEdit = (t: RoomType) => {
-    setEditing({ ...t, amenities: [...t.amenities] });
-    setAmenText(t.amenities.join(', '));
-  };
-
-  const handleToggleStatus = async (t: RoomType) => {
+  const handleToggleStatus = async (t: RoomTypeDetails) => {
+    if (!propertyId) return;
+    const next: RoomTypeStatus = t.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     try {
-      await inventoryApi.updateRoomType(t.id, {
-        name: t.name,
-        baseRate: t.baseRate,
-        isActive: !t.active,
-      });
-      toast(`Room type marked as ${!t.active ? 'Active' : 'Inactive'}`, {
-        tone: 'success',
-      });
+      await roomTypeApi.update(propertyId, t.id, { status: next });
+      toast(`Room type marked as ${STATUS_LABEL[next]}`, { tone: 'success' });
       onRefresh();
     } catch (err) {
-      toast('Could not toggle status', { detail: displayApiError(err), tone: 'danger' });
+      toast('Could not change status', { detail: displayApiError(err), tone: 'danger' });
     }
   };
 
   const handleSave = async () => {
-    if (!editing) return;
+    if (!editing || !propertyId) return;
     if (editing.name.trim().length < 2) {
       return toast('Name required', { detail: 'Please specify a room type title.', tone: 'warning' });
     }
-    if (editing.baseRate < 0) {
-      return toast('Invalid rate', { detail: 'Base nightly rate cannot be negative.', tone: 'warning' });
+    if (!isWhole(editing.roomCount, 0)) {
+      return toast('Invalid room count', { detail: 'Rooms must be a whole number, 0 or more.', tone: 'warning' });
+    }
+    if (!isWhole(editing.capacity, 1)) {
+      return toast('Invalid capacity', { detail: 'Max guests must be a whole number, 1 or more.', tone: 'warning' });
+    }
+    if (!(editing.baseRate >= 0) || Math.round(editing.baseRate * 100) / 100 !== editing.baseRate) {
+      return toast('Invalid rate', {
+        detail: 'Base nightly rate must be 0 or more, with at most two decimals.',
+        tone: 'warning',
+      });
     }
 
-    const amenities = amenText
-      .split(',')
-      .map((a) => a.trim())
-      .filter(Boolean);
+    const body: RoomTypeInput = {
+      name: editing.name.trim(),
+      roomCount: editing.roomCount,
+      capacity: editing.capacity,
+      baseRate: editing.baseRate,
+      status: editing.status,
+    };
 
     setIsSaving(true);
     try {
-      if (editing.id.startsWith('rt-new')) {
-        const code = editing.name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 10);
-        await inventoryApi.createRoomType({
-          code: code || 'RT-NEW',
-          name: editing.name.trim(),
-          description: editing.description,
-          maxAdults: Math.max(1, editing.maxAdults ?? 2),
-          maxChildren: Math.max(0, editing.maxChildren ?? 0),
-          baseRate: editing.baseRate,
-          amenities,
-        });
-        toast('New room type created', { detail: `${editing.name} added to catalog.`, tone: 'success' });
+      if (editing.id === null) {
+        await roomTypeApi.create(propertyId, body);
+        toast('New room type created', { detail: `${body.name} added to catalog.`, tone: 'success' });
       } else {
-        await inventoryApi.updateRoomType(editing.id, {
-          name: editing.name.trim(),
-          description: editing.description,
-          maxAdults: Math.max(1, editing.maxAdults ?? 2),
-          maxChildren: Math.max(0, editing.maxChildren ?? 0),
-          baseRate: editing.baseRate,
-          isActive: editing.active,
-          amenities,
-        });
-        toast('Room type updated', { detail: `${editing.name} specifications updated.`, tone: 'success' });
+        await roomTypeApi.update(propertyId, editing.id, body);
+        toast('Room type updated', { detail: `${body.name} specifications updated.`, tone: 'success' });
       }
       onRefresh();
       setEditing(null);
@@ -154,7 +168,7 @@ export function RoomTypesSection({
           icon={Lucide.Layers}
           tone="info"
           value={types.length}
-          caption={<>{activeCount} active in catalog</>}
+          caption={<>{countByStatus('ACTIVE')} active in catalog</>}
         />
 
         <StatTile
@@ -199,7 +213,8 @@ export function RoomTypesSection({
               </Button>
               <Button
                 variant="primary"
-                onClick={handleOpenAdd}
+                onClick={() => setEditing({ ...EMPTY_FORM })}
+                disabled={!propertyId}
                 icon={<Lucide.Plus size={14} />}
               >
                 Add Room Type
@@ -222,7 +237,7 @@ export function RoomTypesSection({
             <TextField
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by room type name, description..."
+              placeholder="Search by room type name..."
               className="pl-8"
             />
           </div>
@@ -230,12 +245,13 @@ export function RoomTypesSection({
             <span className="text-label text-ink-secondary whitespace-nowrap">Filter status:</span>
             <SelectField
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
-              className="w-36"
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              className="w-44"
             >
               <option value="all">All ({types.length})</option>
-              <option value="active">Active only ({activeCount})</option>
-              <option value="inactive">Inactive ({types.length - activeCount})</option>
+              <option value="ACTIVE">Active only ({countByStatus('ACTIVE')})</option>
+              <option value="INACTIVE">Inactive ({countByStatus('INACTIVE')})</option>
+              <option value="MAINTENANCE">Maintenance ({countByStatus('MAINTENANCE')})</option>
             </SelectField>
           </div>
         </div>
@@ -262,40 +278,35 @@ export function RoomTypesSection({
                   </td>
                   <td className="text-center tnum font-semibold text-ink text-label py-3">
                     <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted-surface text-ink font-bold">
-                      {t.count}
+                      {t.roomCount}
                     </span>
                   </td>
                   <td className="tnum text-ink-secondary text-label py-3">
                     <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-semibold text-ink">
                       <Lucide.Users size={12} className="shrink-0 text-ink-secondary" />
                       <span>
-                        {formatCapacity(t.maxAdults ?? t.maxOccupancy, 'Adult', 'Adults')}
-                        {' · '}
-                        {formatCapacity(t.maxChildren ?? 0, 'Child', 'Children')}
+                        {t.capacity} {t.capacity === 1 ? 'Guest' : 'Guests'}
                       </span>
                     </span>
                   </td>
                   <td className="tnum text-right font-black text-ink text-label py-3">
-                    {formatCurrency(t.baseRate, currencyCode)}
+                    {formatCurrency(Number(t.baseRate), currencyCode)}
                   </td>
                   <td className="text-center py-3">
-                    <Badge tone={t.active ? 'success' : 'neutral'} dot size="sm">
-                      {t.active ? 'Active' : 'Inactive'}
+                    <Badge tone={STATUS_TONE[t.status]} dot size="sm">
+                      {STATUS_LABEL[t.status]}
                     </Badge>
                   </td>
                   <td className="text-right py-3">
                     <div className="inline-flex items-center gap-1.5">
                       <IconButton
-                        title={t.active ? 'Deactivate room type' : 'Activate room type'}
-                        onClick={() => handleToggleStatus(t)}
-                        className={t.active ? 'hover:text-warning-text' : 'hover:text-success-text'}
+                        title={t.status === 'ACTIVE' ? 'Deactivate room type' : 'Activate room type'}
+                        onClick={() => void handleToggleStatus(t)}
+                        className={t.status === 'ACTIVE' ? 'hover:text-warning-text' : 'hover:text-success-text'}
                       >
-                        {t.active ? <Lucide.PauseCircle size={15} /> : <Lucide.PlayCircle size={15} />}
+                        {t.status === 'ACTIVE' ? <Lucide.PauseCircle size={15} /> : <Lucide.PlayCircle size={15} />}
                       </IconButton>
-                      <IconButton
-                        title={`Edit ${t.name}`}
-                        onClick={() => handleOpenEdit(t)}
-                      >
+                      <IconButton title={`Edit ${t.name}`} onClick={() => setEditing(formFromType(t))}>
                         <Lucide.Pencil size={14} />
                       </IconButton>
                     </div>
@@ -305,7 +316,7 @@ export function RoomTypesSection({
               {filteredTypes.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-label text-ink-muted">
-                    No room types match the criteria.
+                    {loading ? 'Loading room types…' : 'No room types match the criteria.'}
                   </td>
                 </tr>
               )}
@@ -318,7 +329,7 @@ export function RoomTypesSection({
       <Modal
         open={editing !== null}
         onClose={() => setEditing(null)}
-        title={editing?.id.startsWith('rt-new') ? 'Add New Room Type' : `Edit ${editing?.name}`}
+        title={editing?.id === null ? 'Add New Room Type' : `Edit ${editing?.name}`}
         subtitle="Manage room category code, base rates, occupant boundaries, and luxury inclusions"
         wide
       >
@@ -343,8 +354,51 @@ export function RoomTypesSection({
               />
             </Field>
 
+            <Field label="Number of Rooms" hint="Physical rooms of this type">
+              <TextField
+                type="number"
+                min={0}
+                value={editing.roomCount}
+                onChange={(e) => setEditing({ ...editing, roomCount: Number(e.target.value) })}
+                className="tnum"
+              />
+            </Field>
+
+            <Field label="Max Guests per Room">
+              <TextField
+                type="number"
+                min={1}
+                max={100}
+                value={editing.capacity}
+                onChange={(e) => setEditing({ ...editing, capacity: Number(e.target.value) })}
+                className="tnum"
+              />
+            </Field>
+
+            <Field label="Status">
+              <SelectField
+                value={editing.status}
+                onChange={(e) => setEditing({ ...editing, status: e.target.value as RoomTypeStatus })}
+              >
+                <option value="ACTIVE">Active (Available for booking & OTA mapping)</option>
+                <option value="INACTIVE">Inactive (Hidden from booking engine)</option>
+                <option value="MAINTENANCE">Maintenance (Temporarily unavailable)</option>
+              </SelectField>
+            </Field>
+
+            <Field label="Max Children Allowed" hint={NOT_SAVED_HINT}>
+              <TextField
+                type="number"
+                min={0}
+                max={6}
+                value={editing.maxChildren}
+                onChange={(e) => setEditing({ ...editing, maxChildren: Number(e.target.value) })}
+                className="tnum"
+              />
+            </Field>
+
             <div className="sm:col-span-2">
-              <Field label="Description">
+              <Field label="Description" hint={NOT_SAVED_HINT}>
                 <TextArea
                   rows={2}
                   value={editing.description}
@@ -354,70 +408,29 @@ export function RoomTypesSection({
               </Field>
             </div>
 
-            <Field label="Max Adults Allowed">
+            <Field label="Bed Setup Description" hint={NOT_SAVED_HINT}>
               <TextField
-                type="number"
-                min={1}
-                max={10}
-                value={editing.maxAdults ?? 2}
-                onChange={(e) => setEditing({ ...editing, maxAdults: Number(e.target.value) })}
-                className="tnum"
-              />
-            </Field>
-
-            <Field label="Max Children Allowed">
-              <TextField
-                type="number"
-                min={0}
-                max={6}
-                value={editing.maxChildren ?? 0}
-                onChange={(e) => setEditing({ ...editing, maxChildren: Number(e.target.value) })}
-                className="tnum"
-              />
-            </Field>
-
-            <Field label="Catalog Active State">
-              <SelectField
-                value={editing.active ? 'active' : 'inactive'}
-                onChange={(e) => setEditing({ ...editing, active: e.target.value === 'active' })}
-              >
-                <option value="active">Active (Available for booking & OTA mapping)</option>
-                <option value="inactive">Inactive (Hidden from booking engine)</option>
-              </SelectField>
-            </Field>
-
-            <Field label="Bed Setup Description">
-              <TextField
-                value={editing.beds || '1 King Bed'}
+                value={editing.beds}
                 onChange={(e) => setEditing({ ...editing, beds: e.target.value })}
                 placeholder="e.g. 1 King Bed or 2 Twin Singles"
               />
             </Field>
 
-            <div className="sm:col-span-2">
-              <Field
-                label="Included Amenities (Comma-separated)"
-                hint="Amenities displayed to guests during room allocation"
-              >
-                <TextField
-                  value={amenText}
-                  onChange={(e) => setAmenText(e.target.value)}
-                  placeholder="High-Speed Wi-Fi, 55 Smart TV, Minibar, Balcony, Rain Shower"
-                />
-              </Field>
-            </div>
+            <Field label="Included Amenities (Comma-separated)" hint={NOT_SAVED_HINT}>
+              <TextField
+                value={editing.amenities}
+                onChange={(e) => setEditing({ ...editing, amenities: e.target.value })}
+                placeholder="High-Speed Wi-Fi, 55 Smart TV, Minibar, Balcony, Rain Shower"
+              />
+            </Field>
 
             <div className="flex justify-end gap-2 sm:col-span-2 pt-3 border-t border-divider">
-              <Button
-                variant="secondary"
-                onClick={() => setEditing(null)}
-                disabled={isSaving}
-              >
+              <Button variant="secondary" onClick={() => setEditing(null)} disabled={isSaving}>
                 Cancel
               </Button>
               <Button
                 variant="primary"
-                onClick={handleSave}
+                onClick={() => void handleSave()}
                 disabled={isSaving}
                 icon={isSaving ? <Lucide.Loader2 size={14} className="animate-spin" /> : <Lucide.Save size={14} />}
               >
@@ -430,4 +443,3 @@ export function RoomTypesSection({
     </div>
   );
 }
-

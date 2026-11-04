@@ -1,4 +1,6 @@
 import { store } from '../../data/store';
+import { clearAccessToken, saveAccessToken } from './authToken';
+import { ApiError, apiRequest } from './client';
 import type { ThemeKey } from '../../types';
 
 export interface PropertyMembership {
@@ -157,11 +159,132 @@ export interface NightAuditRow {
   exceptionCount?: number; advisoryOnly?: boolean;
 }
 
+interface LoginResponse {
+  accessToken: string;
+  tokenType: 'Bearer';
+}
+
+type BackendRole = 'ADMIN' | 'STAFF';
+
+interface BackendMe {
+  id: string;
+  email: string;
+  name: string;
+  role: BackendRole;
+  /** The one property a STAFF user belongs to; null for ADMIN. */
+  propertyId: string | null;
+}
+
+/** What `GET /properties` returns: every property for ADMIN, only their own for STAFF. */
+interface BackendProperty {
+  id: string;
+  name: string;
+  code: string;
+  address: string | null;
+  city: string;
+  defaultCurrency: string;
+  checkInTime: string;
+  checkOutTime: string;
+  isActive: boolean;
+}
+
+const ROLE_LABELS: Record<BackendRole, { id: string; key: string; name: string; description: string }> = {
+  ADMIN: { id: 'role-admin', key: 'admin', name: 'Administrator', description: 'Manages every property.' },
+  STAFF: { id: 'role-staff', key: 'staff', name: 'Staff', description: 'Works at one property.' },
+};
+
+/** An ADMIN's choice of property for this browser tab; STAFF never use it. */
+const ACTIVE_PROPERTY_KEY = 'pms.activePropertyId';
+
+/**
+ * Authentication and property access are real (backend `/auth/*` and
+ * `/properties`): a STAFF user only ever sees their own property, an ADMIN
+ * picks one. Permissions and all other data are not on the backend yet, so they
+ * still come from the demo store, which is presented as the active property.
+ */
 export const authApi = {
-  login: async (_email: string, _password: string) => store.session(),
-  me: async () => store.session(),
-  logout: async () => undefined,
-  switchProperty: async (propertyId: string) => store.switchProperty(propertyId),
+  login: async (email: string, password: string, remember: boolean) => {
+    const { accessToken } = await apiRequest<LoginResponse>('/auth/login', {
+      method: 'POST',
+      body: { email, password },
+    });
+    saveAccessToken(accessToken, remember);
+  },
+  me: async (): Promise<AuthMe> => {
+    const [user, properties] = await Promise.all([
+      apiRequest<BackendMe>('/auth/me'),
+      apiRequest<BackendProperty[]>('/properties'),
+    ]);
+    const demo = store.session();
+    const role = ROLE_LABELS[user.role];
+    const demoProperty = demo.user.propertyMemberships[0]?.property;
+
+    const propertyIds = properties.filter((p) => p.isActive).map((p) => p.id);
+    const saved = sessionStorage.getItem(ACTIVE_PROPERTY_KEY);
+    const activeId =
+      user.role === 'STAFF'
+        ? user.propertyId
+        : saved && propertyIds.includes(saved)
+          ? saved
+          : propertyIds.length === 1
+            ? (propertyIds[0] ?? null)
+            : null;
+
+    const active = properties.find((p) => p.id === activeId);
+    if (active) {
+      store.adoptProperty({
+        id: active.id,
+        name: active.name,
+        slug: active.code,
+        currencyCode: active.defaultCurrency,
+        checkInTime: active.checkInTime,
+        checkOutTime: active.checkOutTime,
+        addressLine1: active.address,
+        city: active.city,
+      });
+    }
+
+    return {
+      ...demo,
+      user: {
+        ...demo.user,
+        email: user.email,
+        fullName: user.name,
+        propertyMemberships: properties.map((p) => ({
+          id: `membership-${p.id}`,
+          userId: demo.user.id,
+          propertyId: p.id,
+          roleId: role.id,
+          isActive: p.isActive,
+          role,
+          property: {
+            id: p.id,
+            name: p.name,
+            slug: p.code,
+            timezone: demoProperty?.timezone ?? 'UTC',
+            currencyCode: p.defaultCurrency,
+          },
+        })),
+      },
+      activePropertyId: active?.id ?? null,
+    };
+  },
+  /** Always forgets the token locally, even if the server could not be reached. */
+  logout: async () => {
+    try {
+      await apiRequest<void>('/auth/logout', { method: 'POST' });
+    } catch (error) {
+      // Already signed out server-side; nothing left to revoke.
+      if (!(error instanceof ApiError && error.status === 401)) throw error;
+    } finally {
+      clearAccessToken();
+      sessionStorage.removeItem(ACTIVE_PROPERTY_KEY);
+    }
+  },
+  /** Only meaningful for ADMIN; a STAFF user's property comes from the backend. */
+  switchProperty: async (propertyId: string) => {
+    sessionStorage.setItem(ACTIVE_PROPERTY_KEY, propertyId);
+  },
 };
 
 export interface HoldResult {
@@ -202,18 +325,86 @@ export const dayLogApi = {
   removeEnquiry: async (id: string) => store.removeDayEnquiry(id),
 };
 
+export type PropertyTypeKey = 'HOTEL' | 'RESORT' | 'VILLA' | 'MOTEL' | 'APARTMENT';
+
+/** A property as the backend stores it (`GET /properties/:id`). */
+export interface PropertyDetails {
+  id: string;
+  name: string;
+  code: string;
+  type: PropertyTypeKey;
+  description: string | null;
+  address: string | null;
+  city: string;
+  state: string | null;
+  country: string;
+  postalCode: string | null;
+  phone: string | null;
+  frontDeskPhone: string | null;
+  emergencyContact: string | null;
+  email: string | null;
+  generalEmail: string | null;
+  reservationsEmail: string | null;
+  website: string | null;
+  /** 24-hour "HH:mm". */
+  checkInTime: string;
+  /** 24-hour "HH:mm". */
+  checkOutTime: string;
+  /** ISO 4217 code. */
+  defaultCurrency: string;
+  numberOfFloors: number | null;
+  totalRooms: number | null;
+  isActive: boolean;
+}
+
+/** Only the fields being changed; `null` clears an optional field. */
+export type PropertyUpdate = Partial<Omit<PropertyDetails, 'id' | 'isActive'>>;
+
+/** Real backend calls. Reading is open to the property's own staff; updating is ADMIN only. */
 export const propertyApi = {
-  list: async () => store.properties(),
-  update: async (id: string, body: Record<string, unknown>) => store.updateProperty(id, body),
+  get: async (id: string) => apiRequest<PropertyDetails>(`/properties/${id}`),
+  update: async (id: string, body: PropertyUpdate) =>
+    apiRequest<PropertyDetails>(`/properties/${id}`, { method: 'PATCH', body }),
+};
+
+export type RoomTypeStatus = 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE';
+
+/** A room type of one property as the backend stores it (`/:propertyId/rooms`). */
+export interface RoomTypeDetails {
+  id: string;
+  propertyId: string;
+  name: string;
+  /** Number of physical rooms of this type. */
+  roomCount: number;
+  /** Maximum guests per room. */
+  capacity: number;
+  /** Per night; the backend returns the decimal as a string. */
+  baseRate: string;
+  status: RoomTypeStatus;
+}
+
+export interface RoomTypeInput {
+  name: string;
+  roomCount: number;
+  capacity: number;
+  baseRate: number;
+  status: RoomTypeStatus;
+}
+
+/** Real backend calls, always scoped to one property. */
+export const roomTypeApi = {
+  list: async (propertyId: string) => apiRequest<RoomTypeDetails[]>(`/${propertyId}/rooms`),
+  create: async (propertyId: string, body: RoomTypeInput) =>
+    apiRequest<RoomTypeDetails>(`/${propertyId}/rooms`, { method: 'POST', body }),
+  update: async (propertyId: string, id: string, body: Partial<RoomTypeInput>) =>
+    apiRequest<RoomTypeDetails>(`/${propertyId}/rooms/${id}`, { method: 'PATCH', body }),
 };
 
 export const inventoryApi = {
   rooms: async () => store.rooms(),
   roomTypes: async () => store.roomTypes(),
   updateRoom: async (id: string, body: Record<string, unknown>) => store.updateRoom(id, body),
-  updateRoomType: async (id: string, body: Record<string, unknown>) => store.updateRoomType(id, body),
   createRoom: async (body: Record<string, unknown>) => store.createRoom(body),
-  createRoomType: async (body: Record<string, unknown>) => store.createRoomType(body),
   availability: async (checkIn: string, checkOut: string, roomTypeId: string) =>
     store.availability(checkIn, checkOut, roomTypeId),
   outOfOrder: async (id: string, reason: string) => store.outOfOrder(id, reason),

@@ -233,9 +233,13 @@ function AuthenticatedApp() {
 
   if (!me) {
     return (
-      <Suspense fallback={<PageFallback />}>
-        <LoginPage />
-      </Suspense>
+      <>
+        <Suspense fallback={<PageFallback />}>
+          <LoginPage />
+        </Suspense>
+        {/* The shell mounts its own Toaster; the login page needs one for sign-in errors. */}
+        <Toaster />
+      </>
     );
   }
 

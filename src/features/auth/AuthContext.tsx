@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { getAccessToken } from '../../lib/api/authToken';
 import { ApiError } from '../../lib/api/client';
 import { authApi } from '../../lib/api/pms';
 import type { AuthMe } from '../../lib/api/pms';
@@ -7,7 +8,7 @@ interface AuthContextValue {
   me: AuthMe | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, remember: boolean) => Promise<void>;
   logout: () => Promise<void>;
   switchProperty: (propertyId: string) => Promise<void>;
   reload: () => Promise<void>;
@@ -18,8 +19,35 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<AuthMe | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Start in the loading state when a saved token has to be checked first, so a
+  // reload does not flash the login page.
+  const [loading, setLoading] = useState(() => getAccessToken() !== null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!getAccessToken()) return;
+    let active = true;
+
+    const restoreSession = async () => {
+      try {
+        const session = await authApi.me();
+        if (active) setMe(session);
+      } catch (cause) {
+        // A 401 means the saved token is dead (already cleared); anything else
+        // (server down) also lands on the login page, with the reason shown.
+        if (active && !(cause instanceof ApiError && cause.status === 401)) {
+          setError(cause instanceof Error ? cause.message : 'Could not restore your session.');
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void restoreSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const reload = useCallback(async () => {
     if (!me) return;
@@ -32,14 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [me]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, remember: boolean) => {
     setError(null);
     setLoading(true);
     try {
-      await authApi.login(email, password);
+      await authApi.login(email, password, remember);
       setMe(await authApi.me());
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not sign in to your session.');
+      setError(cause instanceof Error ? cause.message : 'Could not sign in.');
       throw cause;
     } finally {
       setLoading(false);
@@ -47,8 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await authApi.logout();
-    setMe(null);
+    try {
+      await authApi.logout();
+    } finally {
+      setMe(null);
+    }
   }, []);
 
   const switchProperty = useCallback(async (propertyId: string) => {

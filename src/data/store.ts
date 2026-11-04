@@ -1135,8 +1135,13 @@ function exportCsv(path: string, fallbackName: string): { filename: string; cont
 export const store = {
   /* auth */
   session,
-  switchProperty(propertyId: string) {
-    if (propertyId) activePropertyId = propertyId;
+  /**
+   * The demo data is not stored per property, so it is presented as belonging
+   * to whichever real property the signed-in user is working in.
+   */
+  adoptProperty(property: Pick<PropertyRow, 'id' | 'name' | 'slug' | 'currencyCode' | 'checkInTime' | 'checkOutTime' | 'addressLine1' | 'city'>) {
+    Object.assign(PROPERTY, property);
+    activePropertyId = property.id;
   },
 
   /* day log */
@@ -1161,46 +1166,8 @@ export const store = {
     );
   },
 
-  /* properties */
-  properties:(): PropertyRow[] => [clone(PROPERTY)],
-  updateProperty(id: string, body: Record<string, unknown>) {
-    if (id !== PROPERTY.id) return;
-    Object.assign(PROPERTY, body);
-  },
-
   /* room types */
   roomTypes: (): RoomTypeRow[] => clone(ROOM_TYPES),
-  createRoomType(body: Record<string, unknown>): RoomTypeRow {
-    const type: RoomTypeRow = {
-      id: String(body.id ?? body.code ?? nextId('rt')).toLowerCase(),
-      code: String(body.code ?? 'NEW'),
-      name: String(body.name ?? 'New Room Type'),
-      description: (body.description as string) ?? null,
-      maxAdults: num(body.maxAdults) || 2,
-      maxChildren: num(body.maxChildren),
-      baseRate: money(num(body.baseRate)),
-      amenities: body.amenities ?? [],
-      isActive: body.isActive !== false,
-    };
-    ROOM_TYPES.push(type);
-    return clone(type);
-  },
-  updateRoomType(id: string, body: Record<string, unknown>): RoomTypeRow | undefined {
-    const type = ROOM_TYPES.find((t) => t.id === id);
-    if (!type) return undefined;
-    if (body.name !== undefined) type.name = String(body.name);
-    if (body.description !== undefined) type.description = (body.description as string) ?? null;
-    if (body.maxAdults !== undefined) type.maxAdults = num(body.maxAdults);
-    if (body.maxChildren !== undefined) type.maxChildren = num(body.maxChildren);
-    if (body.baseRate !== undefined) type.baseRate = money(num(body.baseRate));
-    if (body.isActive !== undefined) type.isActive = Boolean(body.isActive);
-    rooms.filter((r) => r.roomTypeId === id).forEach((r) => {
-      r.roomTypeName = type.name;
-      r.roomTypeCode = type.code;
-      r.baseRate = type.baseRate;
-    });
-    return clone(type);
-  },
 
   /* rooms */
   rooms: (): RoomRow[] => clone(rooms),
