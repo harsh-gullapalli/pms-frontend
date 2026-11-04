@@ -6,6 +6,7 @@ import { Field } from '../../../components/controls';
 import { Modal } from '../../../components/overlays';
 import { Badge, Card, CardTitle, TableContainer } from '../../../components/ui';
 import type { RoomCategory } from './types';
+import { StatStrip, StatTile } from './RoomSettingsKit';
 
 interface CategoriesSectionProps {
   categories: RoomCategory[];
@@ -84,60 +85,40 @@ export function CategoriesSection({ categories, onChange }: CategoriesSectionPro
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 4 KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Categories</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-info-bg text-info-text">
-              <Lucide.Boxes size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{categories.length}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Classification standards</p>
-          </div>
-        </div>
+      <StatStrip>
+        <StatTile
+          label="Categories"
+          icon={Lucide.Boxes}
+          tone="info"
+          value={categories.length}
+          caption="Classification standards"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Assigned Units</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-success-bg text-success-text">
-              <Lucide.Bed size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{totalAssignedRooms}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Mapped to physical rooms</p>
-          </div>
-        </div>
+        <StatTile
+          label="Assigned Units"
+          icon={Lucide.Bed}
+          tone="success"
+          value={totalAssignedRooms}
+          caption="Mapped to physical rooms"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">ADA Accessible</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning-bg text-warning-text">
-              <Lucide.Accessibility size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{accessibleCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Barrier-free layouts</p>
-          </div>
-        </div>
+        <StatTile
+          label="ADA Accessible"
+          icon={Lucide.Accessibility}
+          tone="warning"
+          value={accessibleCount}
+          caption="Barrier-free layouts"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Standard Tiers</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Lucide.ShieldCheck size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-success-text tnum">100%</span>
-            <p className="text-label text-ink-secondary mt-0.5">Compliant with hotel specs</p>
-          </div>
-        </div>
-      </div>
+        <StatTile
+          label="Standard Tiers"
+          icon={Lucide.ShieldCheck}
+          tone="primary"
+          valueTone="success"
+          value="100%"
+          caption="Compliant with hotel specs"
+        />
+      </StatStrip>
 
       <Card>
         <CardTitle

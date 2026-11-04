@@ -5,6 +5,7 @@ import { Button, Checkbox, SelectField, TextField } from '../../../components/pr
 import { Field } from '../../../components/controls';
 import { Card, CardTitle } from '../../../components/ui';
 import type { RoomOperationalConfig } from './types';
+import { StatStrip, StatTile } from './RoomSettingsKit';
 
 interface OperationalRulesSectionProps {
   config: RoomOperationalConfig;
@@ -39,68 +40,40 @@ export function OperationalRulesSection({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 4 Summary Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Check-In / Out</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-info-bg text-info-text">
-              <Lucide.Clock size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">
-              {form.standardCheckInTime} / {form.standardCheckOutTime}
-            </span>
-            <p className="text-label text-ink-secondary mt-0.5">Standard daily hotel timings</p>
-          </div>
-        </div>
+      <StatStrip>
+        <StatTile
+          label="Check-In / Out"
+          icon={Lucide.Clock}
+          tone="info"
+          value={<>{form.standardCheckInTime} / {form.standardCheckOutTime}</>}
+          caption="Standard daily hotel timings"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Turnaround Window</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-success-bg text-success-text">
-              <Lucide.Timer size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">
-              {form.turnaroundBufferMinutes} Mins
-            </span>
-            <p className="text-label text-ink-secondary mt-0.5">Buffer before next arrival</p>
-          </div>
-        </div>
+        <StatTile
+          label="Turnaround Window"
+          icon={Lucide.Timer}
+          tone="success"
+          value={<>{form.turnaroundBufferMinutes} Mins</>}
+          caption="Buffer before next arrival"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Cleaning Standard</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning-bg text-warning-text">
-              <Lucide.Sparkles size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">
-              {form.cleaningDurationStandard}m / {form.cleaningDurationSuite}m
-            </span>
-            <p className="text-label text-ink-secondary mt-0.5">Standard vs suite turnover</p>
-          </div>
-        </div>
+        <StatTile
+          label="Cleaning Standard"
+          icon={Lucide.Sparkles}
+          tone="warning"
+          value={<>{form.cleaningDurationStandard}m / {form.cleaningDurationSuite}m</>}
+          caption="Standard vs suite turnover"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Holding Timeout</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Lucide.Hourglass size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-success-text tnum">
-              {form.holdReleaseTimeoutMinutes} Mins
-            </span>
-            <p className="text-label text-ink-secondary mt-0.5">Auto-release unconfirmed rooms</p>
-          </div>
-        </div>
-      </div>
+        <StatTile
+          label="Holding Timeout"
+          icon={Lucide.Hourglass}
+          tone="primary"
+          valueTone="success"
+          value={<>{form.holdReleaseTimeoutMinutes} Mins</>}
+          caption="Auto-release unconfirmed rooms"
+        />
+      </StatStrip>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Main 2 Cols: Form Settings */}

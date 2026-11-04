@@ -42,24 +42,45 @@ import { ConnectingRoomsSection } from './ConnectingRoomsSection';
 
 interface SectionTabItem {
   id: RoomSettingsSectionId;
-  number: number;
   label: string;
   shortLabel: string;
   icon: Lucide.LucideIcon;
 }
 
-const SECTIONS: SectionTabItem[] = [
-  { id: 'room-types', number: 1, label: 'Room Types', shortLabel: 'Types', icon: Lucide.BedDouble },
-  { id: 'categories', number: 2, label: 'Categories / Classification', shortLabel: 'Categories', icon: Lucide.Boxes },
-  { id: 'floors-buildings', number: 3, label: 'Floors & Buildings', shortLabel: 'Floors', icon: Lucide.Building2 },
-  { id: 'occupancy', number: 4, label: 'Occupancy & Capacity', shortLabel: 'Capacity', icon: Lucide.Users2 },
-  { id: 'amenities', number: 5, label: 'Room Amenities', shortLabel: 'Amenities', icon: Lucide.Sparkles },
-  { id: 'attributes', number: 6, label: 'Room Attributes', shortLabel: 'Attributes', icon: Lucide.Sliders },
-  { id: 'operations', number: 7, label: 'Operational Rules', shortLabel: 'Operations', icon: Lucide.Clock },
-  { id: 'maintenance-reasons', number: 8, label: 'Maintenance Reasons', shortLabel: 'Reasons', icon: Lucide.Wrench },
-  { id: 'status-config', number: 9, label: 'Status Configuration', shortLabel: 'Status', icon: Lucide.Activity },
-  { id: 'connecting-rooms', number: 10, label: 'Connecting & Linked Rooms', shortLabel: 'Linked Rooms', icon: Lucide.Link2 },
+interface SectionGroup {
+  title: string;
+  items: SectionTabItem[];
+}
+
+const GROUPS: SectionGroup[] = [
+  {
+    title: 'Inventory',
+    items: [
+      { id: 'room-types', label: 'Room Types', shortLabel: 'Types', icon: Lucide.BedDouble },
+      { id: 'categories', label: 'Categories', shortLabel: 'Categories', icon: Lucide.Boxes },
+      { id: 'floors-buildings', label: 'Floors & Buildings', shortLabel: 'Floors', icon: Lucide.Building2 },
+      { id: 'connecting-rooms', label: 'Connecting Rooms', shortLabel: 'Linked', icon: Lucide.Link2 },
+    ],
+  },
+  {
+    title: 'Guest experience',
+    items: [
+      { id: 'occupancy', label: 'Occupancy & Capacity', shortLabel: 'Capacity', icon: Lucide.Users2 },
+      { id: 'amenities', label: 'Amenities', shortLabel: 'Amenities', icon: Lucide.Sparkles },
+      { id: 'attributes', label: 'Attributes', shortLabel: 'Attributes', icon: Lucide.Sliders },
+    ],
+  },
+  {
+    title: 'Operations',
+    items: [
+      { id: 'operations', label: 'Operational Rules', shortLabel: 'Rules', icon: Lucide.Clock },
+      { id: 'maintenance-reasons', label: 'Maintenance Reasons', shortLabel: 'Reasons', icon: Lucide.Wrench },
+      { id: 'status-config', label: 'Status Configuration', shortLabel: 'Status', icon: Lucide.Activity },
+    ],
+  },
 ];
+
+const SECTIONS: SectionTabItem[] = GROUPS.flatMap((g) => g.items);
 
 export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
   const [activeSection, setActiveSection] = useState<RoomSettingsSectionId>('room-types');
@@ -139,31 +160,21 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Global Top Banner */}
-      <div className="pms-card p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-3">
+      <header className="pms-card flex flex-col justify-between gap-4 p-4 sm:p-5 md:flex-row md:items-center">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-dark-accent text-white shadow-xs shadow-primary/20">
             <Lucide.Hotel size={22} strokeWidth={2.2} />
           </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-disp2 font-black text-ink tracking-tight">Room Settings</h1>
-              <span className="text-micro font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                Global Property Config
-              </span>
-            </div>
-            <p className="text-label text-ink-secondary mt-0.5">
-              Complete hotel inventory specifications, architectural categories, tower floors, occupancy rules, amenities, and operational triggers
+          <div className="min-w-0">
+            <h1 className="text-disp2 font-extrabold tracking-tight text-ink">Room Settings</h1>
+            <p className="text-label text-ink-secondary">
+              Inventory, capacity, amenities and operating rules for every room in the property
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
-          <Button
-            variant="secondary"
-            onClick={handleResetDefaults}
-            icon={<Lucide.RotateCcw size={13} />}
-          >
+        <div className="flex flex-wrap items-center gap-2 md:flex-none">
+          <Button variant="secondary" onClick={handleResetDefaults} icon={<Lucide.RotateCcw size={13} />}>
             Reset Defaults
           </Button>
           <Button
@@ -175,147 +186,169 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
             {isSavingAll ? 'Saving…' : 'Save All Settings'}
           </Button>
         </div>
-      </div>
+      </header>
 
-      {/* 10-Section Navigation Bar */}
-      <div className="pms-card p-1.5 overflow-hidden">
-        <div
-          className="no-scrollbar flex overflow-x-auto gap-1"
-          role="tablist"
-          aria-label="Room Settings Sections"
-          onKeyDown={(e) => {
-            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-            e.preventDefault();
-            const currentIndex = SECTIONS.findIndex((s) => s.id === activeSection);
-            const step = e.key === 'ArrowRight' ? 1 : -1;
-            const next = SECTIONS[(currentIndex + step + SECTIONS.length) % SECTIONS.length];
-            setActiveSection(next.id);
-            document.getElementById(`room-tab-${next.id}`)?.focus();
-          }}
-        >
-          {SECTIONS.map((sec) => {
-            const isSelected = activeSection === sec.id;
-            const Icon = sec.icon;
-            const badgeValue = getBadgeCount(sec.id);
-            return (
-              <Button
-                variant="text"
-                key={sec.id}
-                id={`room-tab-${sec.id}`}
-                role="tab"
-                tabIndex={isSelected ? 0 : -1}
-                aria-selected={isSelected}
-                aria-controls={`room-panel-${sec.id}`}
-                onClick={() => setActiveSection(sec.id)}
-                className={`relative flex flex-none items-center gap-2 rounded-xl px-3 py-2 text-label font-bold transition-all ${
-                  isSelected
-                    ? 'bg-primary text-white shadow-xs'
-                    : 'text-ink-secondary hover:text-ink hover:bg-muted-surface'
-                }`}
+      <div className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <nav className="pms-card min-w-0 p-1.5 lg:sticky lg:top-4 lg:p-2.5" aria-label="Room settings sections">
+          <div
+            className="no-scrollbar flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible"
+            role="tablist"
+            aria-label="Room Settings Sections"
+            onKeyDown={(e) => {
+              const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+              if (!keys.includes(e.key)) return;
+              e.preventDefault();
+              const currentIndex = SECTIONS.findIndex((s) => s.id === activeSection);
+              let nextIndex: number;
+              if (e.key === 'Home') nextIndex = 0;
+              else if (e.key === 'End') nextIndex = SECTIONS.length - 1;
+              else {
+                const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
+                nextIndex = (currentIndex + step + SECTIONS.length) % SECTIONS.length;
+              }
+              const next = SECTIONS[nextIndex];
+              setActiveSection(next.id);
+              document.getElementById(`room-tab-${next.id}`)?.focus();
+            }}
+          >
+            {GROUPS.map((group, groupIndex) => (
+              <div
+                key={group.title}
+                role="presentation"
+                className={`flex gap-1 lg:flex-col ${groupIndex > 0 ? 'lg:mt-2 lg:border-t lg:border-divider lg:pt-2' : ''}`}
               >
-                <span
-                  className={`flex h-4 w-4 items-center justify-center rounded-full text-micro font-black tnum ${
-                    isSelected ? 'bg-white/20 text-white' : 'bg-muted-surface text-ink-muted'
-                  }`}
+                <p
+                  className="hidden px-2 pb-1 pt-1 text-micro font-bold uppercase tracking-wider text-ink-muted lg:block"
+                  role="presentation"
                 >
-                  {sec.number}
-                </span>
-                <Icon size={14} className="shrink-0" />
-                <span className="hidden sm:inline">{sec.label}</span>
-                <span className="inline sm:hidden">{sec.shortLabel}</span>
-                <span
-                  className={`text-micro font-semibold px-1.5 py-0.2 rounded-md ${
-                    isSelected ? 'bg-white/20 text-white' : 'bg-muted-surface text-ink-muted'
-                  }`}
-                >
-                  {badgeValue}
-                </span>
-              </Button>
-            );
-          })}
+                  {group.title}
+                </p>
+                {group.items.map((sec) => {
+                  const isSelected = activeSection === sec.id;
+                  const Icon = sec.icon;
+                  return (
+                    <button
+                      type="button"
+                      key={sec.id}
+                      id={`room-tab-${sec.id}`}
+                      role="tab"
+                      tabIndex={isSelected ? 0 : -1}
+                      aria-selected={isSelected}
+                      aria-controls={`room-panel-${sec.id}`}
+                      onClick={() => setActiveSection(sec.id)}
+                      className={`flex flex-none cursor-pointer items-center gap-2.5 rounded-xl border px-2 py-1.5 text-left text-label font-semibold transition-colors lg:w-full ${
+                        isSelected
+                          ? 'border-primary/30 bg-primary/5 text-ink'
+                          : 'border-transparent text-ink-secondary hover:bg-muted-surface hover:text-ink'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-7 w-7 flex-none items-center justify-center rounded-lg transition-colors ${
+                          isSelected ? 'bg-primary text-white shadow-xs' : 'bg-muted-surface text-ink-secondary'
+                        }`}
+                      >
+                        <Icon size={15} />
+                      </span>
+                      <span className="hidden min-w-0 flex-1 truncate lg:inline">{sec.label}</span>
+                      <span className="lg:hidden">{sec.shortLabel}</span>
+                      <span
+                        className={`text-micro font-semibold tnum lg:ml-auto ${isSelected ? 'text-primary' : 'text-ink-muted'}`}
+                      >
+                        {getBadgeCount(sec.id)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </nav>
+
+        <div
+          id={`room-panel-${activeSection}`}
+          role="tabpanel"
+          aria-labelledby={`room-tab-${activeSection}`}
+          className="min-w-0"
+        >
+          {activeSection === 'room-types' && (
+            <RoomTypesSection
+              types={roomTypes}
+              currencyCode={currencyCode}
+              loading={inventoryResource.loading}
+              error={inventoryResource.error}
+              onRefresh={() => inventoryResource.refresh()}
+            />
+          )}
+
+          {activeSection === 'categories' && (
+            <CategoriesSection
+              categories={categories}
+              onChange={setCategories}
+            />
+          )}
+
+          {activeSection === 'floors-buildings' && (
+            <FloorsBuildingsSection
+              buildings={buildings}
+              floors={floors}
+              onBuildingsChange={setBuildings}
+              onFloorsChange={setFloors}
+            />
+          )}
+
+          {activeSection === 'occupancy' && (
+            <OccupancyCapacitySection
+              config={occupancyConfig}
+              currencyCode={currencyCode}
+              onChange={setOccupancyConfig}
+            />
+          )}
+
+          {activeSection === 'amenities' && (
+            <AmenitiesSection
+              amenities={amenities}
+              currencyCode={currencyCode}
+              onChange={setAmenities}
+            />
+          )}
+
+          {activeSection === 'attributes' && (
+            <AttributesSection
+              attributes={attributes}
+              onChange={setAttributes}
+            />
+          )}
+
+          {activeSection === 'operations' && (
+            <OperationalRulesSection
+              config={operationalConfig}
+              currencyCode={currencyCode}
+              onChange={setOperationalConfig}
+            />
+          )}
+
+          {activeSection === 'maintenance-reasons' && (
+            <MaintenanceReasonsSection
+              reasons={maintenanceReasons}
+              onChange={setMaintenanceReasons}
+            />
+          )}
+
+          {activeSection === 'status-config' && (
+            <StatusConfigSection
+              statuses={statuses}
+              onChange={setStatuses}
+            />
+          )}
+
+          {activeSection === 'connecting-rooms' && (
+            <ConnectingRoomsSection
+              pairs={connectingPairs}
+              currencyCode={currencyCode}
+              onChange={setConnectingPairs}
+            />
+          )}
         </div>
-      </div>
-
-      {/* Active Section View Panel */}
-      <div id={`room-panel-${activeSection}`} role="tabpanel" aria-labelledby={`room-tab-${activeSection}`}>
-        {activeSection === 'room-types' && (
-          <RoomTypesSection
-            types={roomTypes}
-            currencyCode={currencyCode}
-            loading={inventoryResource.loading}
-            error={inventoryResource.error}
-            onRefresh={() => inventoryResource.refresh()}
-          />
-        )}
-
-        {activeSection === 'categories' && (
-          <CategoriesSection
-            categories={categories}
-            onChange={setCategories}
-          />
-        )}
-
-        {activeSection === 'floors-buildings' && (
-          <FloorsBuildingsSection
-            buildings={buildings}
-            floors={floors}
-            onBuildingsChange={setBuildings}
-            onFloorsChange={setFloors}
-          />
-        )}
-
-        {activeSection === 'occupancy' && (
-          <OccupancyCapacitySection
-            config={occupancyConfig}
-            currencyCode={currencyCode}
-            onChange={setOccupancyConfig}
-          />
-        )}
-
-        {activeSection === 'amenities' && (
-          <AmenitiesSection
-            amenities={amenities}
-            currencyCode={currencyCode}
-            onChange={setAmenities}
-          />
-        )}
-
-        {activeSection === 'attributes' && (
-          <AttributesSection
-            attributes={attributes}
-            onChange={setAttributes}
-          />
-        )}
-
-        {activeSection === 'operations' && (
-          <OperationalRulesSection
-            config={operationalConfig}
-            currencyCode={currencyCode}
-            onChange={setOperationalConfig}
-          />
-        )}
-
-        {activeSection === 'maintenance-reasons' && (
-          <MaintenanceReasonsSection
-            reasons={maintenanceReasons}
-            onChange={setMaintenanceReasons}
-          />
-        )}
-
-        {activeSection === 'status-config' && (
-          <StatusConfigSection
-            statuses={statuses}
-            onChange={setStatuses}
-          />
-        )}
-
-        {activeSection === 'connecting-rooms' && (
-          <ConnectingRoomsSection
-            pairs={connectingPairs}
-            currencyCode={currencyCode}
-            onChange={setConnectingPairs}
-          />
-        )}
       </div>
     </div>
   );

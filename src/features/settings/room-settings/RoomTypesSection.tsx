@@ -9,6 +9,7 @@ import { Field } from '../../../components/controls';
 import { Modal } from '../../../components/overlays';
 import { Badge, Card, CardTitle, TableContainer } from '../../../components/ui';
 import type { RoomType } from '../../../types';
+import { StatStrip, StatTile } from './RoomSettingsKit';
 
 interface RoomTypesSectionProps {
   types: RoomType[];
@@ -144,62 +145,40 @@ export function RoomTypesSection({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 4 Summary Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Room Types</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-info-bg text-info-text">
-              <Lucide.Layers size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{types.length}</span>
-            <p className="text-label text-ink-secondary mt-0.5">{activeCount} active in catalog</p>
-          </div>
-        </div>
+      <StatStrip>
+        <StatTile
+          label="Room Types"
+          icon={Lucide.Layers}
+          tone="info"
+          value={types.length}
+          caption={<>{activeCount} active in catalog</>}
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Physical Units</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-success-bg text-success-text">
-              <Lucide.BedDouble size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{totalInventoryRooms}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Assigned to inventory</p>
-          </div>
-        </div>
+        <StatTile
+          label="Physical Units"
+          icon={Lucide.BedDouble}
+          tone="success"
+          value={totalInventoryRooms}
+          caption="Assigned to inventory"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Starting Rate</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning-bg text-warning-text">
-              <Lucide.Tag size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">
-              {formatCurrency(lowestRate, currencyCode)}
-            </span>
-            <p className="text-label text-ink-secondary mt-0.5">Peak {formatCurrency(highestRate, currencyCode)}</p>
-          </div>
-        </div>
+        <StatTile
+          label="Starting Rate"
+          icon={Lucide.Tag}
+          tone="warning"
+          value={formatCurrency(lowestRate, currencyCode)}
+          caption={<>Peak {formatCurrency(highestRate, currencyCode)}</>}
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Configuration Health</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Lucide.CheckCircle2 size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-success-text tnum">100%</span>
-            <p className="text-label text-ink-secondary mt-0.5">Base rates & amenities mapped</p>
-          </div>
-        </div>
-      </div>
+        <StatTile
+          label="Configuration Health"
+          icon={Lucide.CheckCircle2}
+          tone="primary"
+          valueTone="success"
+          value="100%"
+          caption="Base rates & amenities mapped"
+        />
+      </StatStrip>
 
       {/* Main Table Card */}
       <Card>

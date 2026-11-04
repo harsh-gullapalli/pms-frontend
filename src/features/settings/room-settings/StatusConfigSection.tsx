@@ -6,6 +6,7 @@ import { Field } from '../../../components/controls';
 import { Modal } from '../../../components/overlays';
 import { Badge, Card, CardTitle, TableContainer } from '../../../components/ui';
 import type { RoomStatusDefinition } from './types';
+import { StatStrip, StatTile } from './RoomSettingsKit';
 
 interface StatusConfigSectionProps {
   statuses: RoomStatusDefinition[];
@@ -53,60 +54,40 @@ export function StatusConfigSection({ statuses, onChange }: StatusConfigSectionP
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 4 Summary Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Core Statuses</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-info-bg text-info-text">
-              <Lucide.Activity size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{statuses.length}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Front desk & HK states</p>
-          </div>
-        </div>
+      <StatStrip>
+        <StatTile
+          label="Core Statuses"
+          icon={Lucide.Activity}
+          tone="info"
+          value={statuses.length}
+          caption="Front desk & HK states"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Sellable States</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-success-bg text-success-text">
-              <Lucide.CheckCircle2 size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{sellableCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Vacant Clean & Inspected</p>
-          </div>
-        </div>
+        <StatTile
+          label="Sellable States"
+          icon={Lucide.CheckCircle2}
+          tone="success"
+          value={sellableCount}
+          caption="Vacant Clean & Inspected"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Housekeeping Queued</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning-bg text-warning-text">
-              <Lucide.Sparkles size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{hkRequiredCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Triggers cleaning task</p>
-          </div>
-        </div>
+        <StatTile
+          label="Housekeeping Queued"
+          icon={Lucide.Sparkles}
+          tone="warning"
+          value={hkRequiredCount}
+          caption="Triggers cleaning task"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Automations</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Lucide.Zap size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-success-text tnum">5 Active</span>
-            <p className="text-label text-ink-secondary mt-0.5">Workflow auto-transitions</p>
-          </div>
-        </div>
-      </div>
+        <StatTile
+          label="Automations"
+          icon={Lucide.Zap}
+          tone="primary"
+          valueTone="success"
+          value="5 Active"
+          caption="Workflow auto-transitions"
+        />
+      </StatStrip>
 
       {/* Main Table Card */}
       <Card>
@@ -208,7 +189,6 @@ export function StatusConfigSection({ statuses, onChange }: StatusConfigSectionP
         </TableContainer>
       </Card>
 
-      {/* Automated State Transition Policies */}
       <Card>
         <CardTitle
           title="Automated Status Transitions & Safety Triggers"
@@ -299,7 +279,6 @@ export function StatusConfigSection({ statuses, onChange }: StatusConfigSectionP
         </div>
       </Card>
 
-      {/* Edit Status Modal */}
       <Modal
         open={editing !== null}
         onClose={() => setEditing(null)}

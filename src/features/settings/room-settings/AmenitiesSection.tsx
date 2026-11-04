@@ -7,6 +7,7 @@ import { Field } from '../../../components/controls';
 import { Modal } from '../../../components/overlays';
 import { Badge, Card, CardTitle } from '../../../components/ui';
 import type { AmenityCategory, RoomAmenityItem } from './types';
+import { StatStrip, StatTile } from './RoomSettingsKit';
 
 interface AmenitiesSectionProps {
   amenities: RoomAmenityItem[];
@@ -129,60 +130,40 @@ export function AmenitiesSection({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 4 Summary Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Total Catalog</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-info-bg text-info-text">
-              <Lucide.Sparkles size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{amenities.length}</span>
-            <p className="text-label text-ink-secondary mt-0.5">{activeCount} enabled in rooms</p>
-          </div>
-        </div>
+      <StatStrip>
+        <StatTile
+          label="Total Catalog"
+          icon={Lucide.Sparkles}
+          tone="info"
+          value={amenities.length}
+          caption={<>{activeCount} enabled in rooms</>}
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Standard Inclusions</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-success-bg text-success-text">
-              <Lucide.CheckCircle2 size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{standardCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Complimentary for all guests</p>
-          </div>
-        </div>
+        <StatTile
+          label="Standard Inclusions"
+          icon={Lucide.CheckCircle2}
+          tone="success"
+          value={standardCount}
+          caption="Complimentary for all guests"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Premium / Chargeable</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning-bg text-warning-text">
-              <Lucide.Coins size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{chargeableCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Minibar & on-demand items</p>
-          </div>
-        </div>
+        <StatTile
+          label="Premium / Chargeable"
+          icon={Lucide.Coins}
+          tone="warning"
+          value={chargeableCount}
+          caption="Minibar & on-demand items"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Categories</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Lucide.Layers size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-success-text tnum">6 Groups</span>
-            <p className="text-label text-ink-secondary mt-0.5">Fully classified</p>
-          </div>
-        </div>
-      </div>
+        <StatTile
+          label="Categories"
+          icon={Lucide.Layers}
+          tone="primary"
+          valueTone="success"
+          value="6 Groups"
+          caption="Fully classified"
+        />
+      </StatStrip>
 
       <Card>
         <CardTitle
