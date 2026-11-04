@@ -33,6 +33,9 @@ const EMPTY_ROOM_TYPE: RoomType = {
   active: true,
 };
 
+const formatCapacity = (n: number, singular: string, plural: string) =>
+  `${n} ${n === 1 ? singular : plural}`;
+
 export function RoomTypesSection({
   types,
   currencyCode,
@@ -184,7 +187,6 @@ export function RoomTypesSection({
       <Card>
         <CardTitle
           title="Room Types & Rate Plans"
-          subtitle="Standard, Deluxe, Suite, Presidential Suite, and custom inventory tiers"
           icon={Lucide.BedDouble}
           action={
             <div className="flex items-center gap-2">
@@ -247,7 +249,6 @@ export function RoomTypesSection({
                 <th className="text-center">ROOMS</th>
                 <th>CAPACITY</th>
                 <th className="text-right">BASE RATE / NIGHT</th>
-                <th>AMENITIES</th>
                 <th className="text-center">STATUS</th>
                 <th className="text-right">ACTIONS</th>
               </tr>
@@ -258,9 +259,6 @@ export function RoomTypesSection({
                   <td className="text-center font-medium text-ink-muted text-label py-3">{idx + 1}</td>
                   <td className="py-3">
                     <span className="block font-bold text-ink text-label">{t.name}</span>
-                    <span className="block max-w-[280px] truncate text-label text-ink-muted mt-0.5">
-                      {t.description || 'Standard room inventory type'}
-                    </span>
                   </td>
                   <td className="text-center tnum font-semibold text-ink text-label py-3">
                     <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted-surface text-ink font-bold">
@@ -268,41 +266,17 @@ export function RoomTypesSection({
                     </span>
                   </td>
                   <td className="tnum text-ink-secondary text-label py-3">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="inline-flex items-center gap-1 font-semibold text-ink">
-                        <Lucide.Users size={12} className="text-ink-secondary" />
-                        <span>{t.maxAdults ?? t.maxOccupancy} Adults</span>
+                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-semibold text-ink">
+                      <Lucide.Users size={12} className="shrink-0 text-ink-secondary" />
+                      <span>
+                        {formatCapacity(t.maxAdults ?? t.maxOccupancy, 'Adult', 'Adults')}
+                        {' · '}
+                        {formatCapacity(t.maxChildren ?? 0, 'Child', 'Children')}
                       </span>
-                      {(t.maxChildren ?? 0) > 0 && (
-                        <span className="text-micro text-ink-muted">
-                          +{t.maxChildren} Child{(t.maxChildren ?? 0) > 1 ? 'ren' : ''}
-                        </span>
-                      )}
-                    </div>
+                    </span>
                   </td>
                   <td className="tnum text-right font-black text-ink text-label py-3">
                     {formatCurrency(t.baseRate, currencyCode)}
-                  </td>
-                  <td className="max-w-[240px] py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {t.amenities.length > 0 ? (
-                        t.amenities.slice(0, 3).map((a, i) => (
-                          <span
-                            key={i}
-                            className="text-micro font-medium bg-muted-surface text-ink-secondary px-1.5 py-0.5 rounded"
-                          >
-                            {a}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-label text-ink-muted">—</span>
-                      )}
-                      {t.amenities.length > 3 && (
-                        <span className="text-micro font-bold text-ink-muted bg-muted-surface px-1 py-0.5 rounded">
-                          +{t.amenities.length - 3}
-                        </span>
-                      )}
-                    </div>
                   </td>
                   <td className="text-center py-3">
                     <Badge tone={t.active ? 'success' : 'neutral'} dot size="sm">
@@ -330,7 +304,7 @@ export function RoomTypesSection({
               ))}
               {filteredTypes.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-label text-ink-muted">
+                  <td colSpan={7} className="py-8 text-center text-label text-ink-muted">
                     No room types match the criteria.
                   </td>
                 </tr>
