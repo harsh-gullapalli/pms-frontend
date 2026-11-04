@@ -6,6 +6,7 @@ import { Field } from '../../../components/controls';
 import { Modal } from '../../../components/overlays';
 import { Badge, Card, CardTitle, TableContainer } from '../../../components/ui';
 import type { Building, FloorLevel } from './types';
+import { StatStrip, StatTile } from './RoomSettingsKit';
 
 interface FloorsBuildingsSectionProps {
   buildings: Building[];
@@ -125,60 +126,39 @@ export function FloorsBuildingsSection({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 4 Summary Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Buildings / Wings</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-info-bg text-info-text">
-              <Lucide.Building2 size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{buildings.length}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Towers & standalone wings</p>
-          </div>
-        </div>
+      <StatStrip>
+        <StatTile
+          label="Buildings / Wings"
+          icon={Lucide.Building2}
+          tone="info"
+          value={buildings.length}
+          caption="Towers & standalone wings"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Floor Levels</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-success-bg text-success-text">
-              <Lucide.Layers size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{floors.length}</span>
-            <p className="text-label text-ink-secondary mt-0.5">{operationalFloors} operational</p>
-          </div>
-        </div>
+        <StatTile
+          label="Floor Levels"
+          icon={Lucide.Layers}
+          tone="success"
+          value={floors.length}
+          caption={<>{operationalFloors} operational</>}
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Total Rooms</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Lucide.DoorClosed size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{totalRoomsMapped}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Across all floor zones</p>
-          </div>
-        </div>
+        <StatTile
+          label="Total Rooms"
+          icon={Lucide.DoorClosed}
+          tone="primary"
+          value={totalRoomsMapped}
+          caption="Across all floor zones"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Under Renovation</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning-bg text-warning-text">
-              <Lucide.Hammer size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{renovationFloors}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Floors currently blocked</p>
-          </div>
-        </div>
-      </div>
+        <StatTile
+          label="Under Renovation"
+          icon={Lucide.Hammer}
+          tone="warning"
+          value={renovationFloors}
+          caption="Floors currently blocked"
+        />
+      </StatStrip>
 
       {/* Buildings Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

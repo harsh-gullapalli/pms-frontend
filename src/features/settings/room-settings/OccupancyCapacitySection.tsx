@@ -6,6 +6,7 @@ import { Button, Checkbox, TextField } from '../../../components/primitives';
 import { Field } from '../../../components/controls';
 import { Card, CardTitle } from '../../../components/ui';
 import type { OccupancyConfig } from './types';
+import { StatStrip, StatTile } from './RoomSettingsKit';
 
 interface OccupancyCapacitySectionProps {
   config: OccupancyConfig;
@@ -53,64 +54,40 @@ export function OccupancyCapacitySection({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 4 Summary Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Base Occupancy</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-info-bg text-info-text">
-              <Lucide.Users size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{form.baseOccupancy} Guests</span>
-            <p className="text-label text-ink-secondary mt-0.5">Included in base room rate</p>
-          </div>
-        </div>
+      <StatStrip>
+        <StatTile
+          label="Base Occupancy"
+          icon={Lucide.Users}
+          tone="info"
+          value={<>{form.baseOccupancy} Guests</>}
+          caption="Included in base room rate"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Max Capacity Limit</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Lucide.Maximize2 size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{form.maxTotalOccupancy} Total</span>
-            <p className="text-label text-ink-secondary mt-0.5">
-              {form.maxAdults} adults + {form.maxChildren} children
-            </p>
-          </div>
-        </div>
+        <StatTile
+          label="Max Capacity Limit"
+          icon={Lucide.Maximize2}
+          tone="primary"
+          value={<>{form.maxTotalOccupancy} Total</>}
+          caption={<>{form.maxAdults} adults + {form.maxChildren} children</>}
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Extra Bed Surcharge</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning-bg text-warning-text">
-              <Lucide.BedSingle size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">
-              {formatCurrency(form.extraBedRate, currencyCode)}
-            </span>
-            <p className="text-label text-ink-secondary mt-0.5">Per rollaway bed / night</p>
-          </div>
-        </div>
+        <StatTile
+          label="Extra Bed Surcharge"
+          icon={Lucide.BedSingle}
+          tone="warning"
+          value={formatCurrency(form.extraBedRate, currencyCode)}
+          caption="Per rollaway bed / night"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Infant Policy</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-success-bg text-success-text">
-              <Lucide.Baby size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-success-text tnum">Under {form.childFreeAgeLimit} Free</span>
-            <p className="text-label text-ink-secondary mt-0.5">Cribs complimentary</p>
-          </div>
-        </div>
-      </div>
+        <StatTile
+          label="Infant Policy"
+          icon={Lucide.Baby}
+          tone="success"
+          valueTone="success"
+          value={<>Under {form.childFreeAgeLimit} Free</>}
+          caption="Cribs complimentary"
+        />
+      </StatStrip>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left 2 Cols: Configuration Form */}
@@ -370,7 +347,6 @@ export function OccupancyCapacitySection({
                 />
               </div>
 
-              {/* Status Alert */}
               <div
                 className={`rounded-xl border p-3 flex items-start gap-2.5 ${
                   isOverCapacity

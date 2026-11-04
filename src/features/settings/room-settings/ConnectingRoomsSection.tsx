@@ -7,6 +7,7 @@ import { Field } from '../../../components/controls';
 import { Modal } from '../../../components/overlays';
 import { Badge, Card, CardTitle, TableContainer } from '../../../components/ui';
 import type { ConnectingRoomPair, ConnectionType, DoorLockType } from './types';
+import { StatStrip, StatTile } from './RoomSettingsKit';
 
 interface ConnectingRoomsSectionProps {
   pairs: ConnectingRoomPair[];
@@ -88,60 +89,40 @@ export function ConnectingRoomsSection({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 4 Summary Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Linked Pairs</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-info-bg text-info-text">
-              <Lucide.Link2 size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{totalPairs}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Physical room connections</p>
-          </div>
-        </div>
+      <StatStrip>
+        <StatTile
+          label="Linked Pairs"
+          icon={Lucide.Link2}
+          tone="info"
+          value={totalPairs}
+          caption="Physical room connections"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Interconnecting</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-success-bg text-success-text">
-              <Lucide.DoorOpen size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{interconnectingCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Internal acoustic doors</p>
-          </div>
-        </div>
+        <StatTile
+          label="Interconnecting"
+          icon={Lucide.DoorOpen}
+          tone="success"
+          value={interconnectingCount}
+          caption="Internal acoustic doors"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Sellable as Combo</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning-bg text-warning-text">
-              <Lucide.Boxes size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{comboCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Marketed as 2-bed suite</p>
-          </div>
-        </div>
+        <StatTile
+          label="Sellable as Combo"
+          icon={Lucide.Boxes}
+          tone="warning"
+          value={comboCount}
+          caption="Marketed as 2-bed suite"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Both Available</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Lucide.Sparkles size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-success-text tnum">{availableCount} Pairs</span>
-            <p className="text-label text-ink-secondary mt-0.5">Ready for family booking</p>
-          </div>
-        </div>
-      </div>
+        <StatTile
+          label="Both Available"
+          icon={Lucide.Sparkles}
+          tone="primary"
+          valueTone="success"
+          value={<>{availableCount} Pairs</>}
+          caption="Ready for family booking"
+        />
+      </StatStrip>
 
       <Card>
         <CardTitle

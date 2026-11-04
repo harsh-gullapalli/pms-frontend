@@ -6,6 +6,7 @@ import { Field } from '../../../components/controls';
 import { Modal } from '../../../components/overlays';
 import { Badge, Card, CardTitle, TableContainer } from '../../../components/ui';
 import type { AttributeType, RoomAttributeItem } from './types';
+import { StatStrip, StatTile } from './RoomSettingsKit';
 
 interface AttributesSectionProps {
   attributes: RoomAttributeItem[];
@@ -119,60 +120,39 @@ export function AttributesSection({ attributes, onChange }: AttributesSectionPro
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 4 Summary Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">View Vistas</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-info-bg text-info-text">
-              <Lucide.Eye size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{viewCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Sea, City, Garden, Pool</p>
-          </div>
-        </div>
+      <StatStrip>
+        <StatTile
+          label="View Vistas"
+          icon={Lucide.Eye}
+          tone="info"
+          value={viewCount}
+          caption="Sea, City, Garden, Pool"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Bed Setups</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-success-bg text-success-text">
-              <Lucide.BedDouble size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{bedCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">King, Queen, Twin Singles</p>
-          </div>
-        </div>
+        <StatTile
+          label="Bed Setups"
+          icon={Lucide.BedDouble}
+          tone="success"
+          value={bedCount}
+          caption="King, Queen, Twin Singles"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">ADA Accessibility</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Lucide.Accessibility size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{adaCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Barrier-free features</p>
-          </div>
-        </div>
+        <StatTile
+          label="ADA Accessibility"
+          icon={Lucide.Accessibility}
+          tone="primary"
+          value={adaCount}
+          caption="Barrier-free features"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Smoking Tiers</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning-bg text-warning-text">
-              <Lucide.Cigarette size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{smokingCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Policies configured</p>
-          </div>
-        </div>
-      </div>
+        <StatTile
+          label="Smoking Tiers"
+          icon={Lucide.Cigarette}
+          tone="warning"
+          value={smokingCount}
+          caption="Policies configured"
+        />
+      </StatStrip>
 
       <Card>
         <CardTitle

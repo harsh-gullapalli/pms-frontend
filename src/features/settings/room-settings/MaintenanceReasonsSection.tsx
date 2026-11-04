@@ -6,6 +6,7 @@ import { Field } from '../../../components/controls';
 import { Modal } from '../../../components/overlays';
 import { Badge, Card, CardTitle, TableContainer } from '../../../components/ui';
 import type { MaintenanceImpact, MaintenancePriority, MaintenanceReasonItem } from './types';
+import { StatStrip, StatTile } from './RoomSettingsKit';
 
 interface MaintenanceReasonsSectionProps {
   reasons: MaintenanceReasonItem[];
@@ -95,60 +96,39 @@ export function MaintenanceReasonsSection({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 4 Summary Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Reasons Catalog</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-info-bg text-info-text">
-              <Lucide.Wrench size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{reasons.length}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Standardized codes</p>
-          </div>
-        </div>
+      <StatStrip>
+        <StatTile
+          label="Reasons Catalog"
+          icon={Lucide.Wrench}
+          tone="info"
+          value={reasons.length}
+          caption="Standardized codes"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Hard Blocks (OOO)</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-danger-bg text-danger-text">
-              <Lucide.Ban size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{oooCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Deducted from available inventory</p>
-          </div>
-        </div>
+        <StatTile
+          label="Hard Blocks (OOO)"
+          icon={Lucide.Ban}
+          tone="danger"
+          value={oooCount}
+          caption="Deducted from available inventory"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Soft Blocks (OOS)</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning-bg text-warning-text">
-              <Lucide.AlertCircle size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{oosCount}</span>
-            <p className="text-label text-ink-secondary mt-0.5">Quick cosmetic maintenance</p>
-          </div>
-        </div>
+        <StatTile
+          label="Soft Blocks (OOS)"
+          icon={Lucide.AlertCircle}
+          tone="warning"
+          value={oosCount}
+          caption="Quick cosmetic maintenance"
+        />
 
-        <div className="pms-card p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-label font-semibold text-ink-secondary">Currently Blocked</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Lucide.Lock size={16} />
-            </span>
-          </div>
-          <div className="mt-2">
-            <span className="text-disp3 font-black text-ink tnum">{blockedRoomsCount} Units</span>
-            <p className="text-label text-ink-secondary mt-0.5">{urgentCount} high priority categories</p>
-          </div>
-        </div>
-      </div>
+        <StatTile
+          label="Currently Blocked"
+          icon={Lucide.Lock}
+          tone="primary"
+          value={<>{blockedRoomsCount} Units</>}
+          caption={<>{urgentCount} high priority categories</>}
+        />
+      </StatStrip>
 
       <Card>
         <CardTitle
