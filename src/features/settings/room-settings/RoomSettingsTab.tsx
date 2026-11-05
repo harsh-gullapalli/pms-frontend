@@ -1,31 +1,25 @@
 import { useState } from 'react';
 import * as Lucide from 'lucide-react';
 import { useApiResource } from '../../../lib/api/useApiResource';
-import { roomTypeApi } from '../../../lib/api/pms';
-import type { RoomTypeDetails } from '../../../lib/api/pms';
+import { amenityApi, propertyApi, roomCategoryApi, roomTypeApi } from '../../../lib/api/pms';
+import type { AmenityDetails, PropertyDetails, RoomCategoryDetails, RoomTypeDetails } from '../../../lib/api/pms';
 import { useAuth } from '../../auth/AuthContext';
 import { toast } from '../../../utils/toast';
 import { Button } from '../../../components/primitives';
 import type {
-  Building,
-  FloorLevel,
   MaintenanceReasonItem,
   OccupancyConfig,
-  RoomCategory,
   RoomSettingsSectionId,
   RoomStatusDefinition,
 } from './types';
 import {
-  INITIAL_BUILDINGS,
-  INITIAL_CATEGORIES,
-  INITIAL_FLOORS,
   INITIAL_MAINTENANCE_REASONS,
   INITIAL_OCCUPANCY_CONFIG,
   INITIAL_ROOM_STATUSES,
 } from './initialData';
 import { RoomTypesSection } from './RoomTypesSection';
 import { CategoriesSection } from './CategoriesSection';
-import { FloorsBuildingsSection } from './FloorsBuildingsSection';
+import { AmenitiesSection } from './AmenitiesSection';
 import { OccupancyCapacitySection } from './OccupancyCapacitySection';
 import { MaintenanceReasonsSection } from './MaintenanceReasonsSection';
 import { StatusConfigSection } from './StatusConfigSection';
@@ -48,7 +42,7 @@ const GROUPS: SectionGroup[] = [
     items: [
       { id: 'room-types', label: 'Room Types', shortLabel: 'Types', icon: Lucide.BedDouble },
       { id: 'categories', label: 'Categories', shortLabel: 'Categories', icon: Lucide.Boxes },
-      { id: 'floors-buildings', label: 'Floors & Buildings', shortLabel: 'Floors', icon: Lucide.Building2 },
+      { id: 'amenities', label: 'Amenities', shortLabel: 'Amenities', icon: Lucide.Sparkles },
     ],
   },
   {
@@ -79,11 +73,23 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
     [propertyId],
   );
   const roomTypes = roomTypeResource.data ?? [];
+  // The property's total room count caps how many rooms its room types can hold.
+  const propertyResource = useApiResource(
+    () => (propertyId ? propertyApi.get(propertyId) : Promise.resolve<PropertyDetails | null>(null)),
+    [propertyId],
+  );
+  const categoryResource = useApiResource(
+    () => (propertyId ? roomCategoryApi.list(propertyId) : Promise.resolve<RoomCategoryDetails[]>([])),
+    [propertyId],
+  );
+  const categories = categoryResource.data ?? [];
 
   // Local state for all 6 modular sections
-  const [categories, setCategories] = useState<RoomCategory[]>(INITIAL_CATEGORIES);
-  const [buildings, setBuildings] = useState<Building[]>(INITIAL_BUILDINGS);
-  const [floors, setFloors] = useState<FloorLevel[]>(INITIAL_FLOORS);
+  const amenityResource = useApiResource(
+    () => (propertyId ? amenityApi.list(propertyId) : Promise.resolve<AmenityDetails[]>([])),
+    [propertyId],
+  );
+  const amenities = amenityResource.data ?? [];
   const [occupancyConfig, setOccupancyConfig] = useState<OccupancyConfig>(INITIAL_OCCUPANCY_CONFIG);
   const [maintenanceReasons, setMaintenanceReasons] = useState<MaintenanceReasonItem[]>(INITIAL_MAINTENANCE_REASONS);
   const [statuses, setStatuses] = useState<RoomStatusDefinition[]>(INITIAL_ROOM_STATUSES);
@@ -97,8 +103,8 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
         return roomTypes.length;
       case 'categories':
         return categories.length;
-      case 'floors-buildings':
-        return `${buildings.length}b / ${floors.length}f`;
+      case 'amenities':
+        return amenities.length;
       case 'occupancy':
         return `${occupancyConfig.maxTotalOccupancy} max`;
       case 'maintenance-reasons':
@@ -113,20 +119,19 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
     setTimeout(() => {
       setIsSavingAll(false);
       toast('All room settings committed', {
-        detail: 'Global specifications, building hierarchy, operational rules, and status triggers saved.',
+        detail: 'Global specifications, amenities, operational rules, and status triggers saved.',
         tone: 'success',
       });
     }, 400);
   };
 
   const handleResetDefaults = () => {
-    setCategories(INITIAL_CATEGORIES);
-    setBuildings(INITIAL_BUILDINGS);
-    setFloors(INITIAL_FLOORS);
+    amenityResource.refresh();
     setOccupancyConfig(INITIAL_OCCUPANCY_CONFIG);
     setMaintenanceReasons(INITIAL_MAINTENANCE_REASONS);
     setStatuses(INITIAL_ROOM_STATUSES);
     roomTypeResource.refresh();
+    categoryResource.refresh();
     toast('Room settings restored to baseline', {
       detail: 'All 6 sections reset to standard property defaults.',
       tone: 'info',
@@ -249,6 +254,8 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
             <RoomTypesSection
               propertyId={propertyId ?? null}
               types={roomTypes}
+              categories={categories}
+              totalRooms={propertyResource.data?.totalRooms ?? null}
               currencyCode={currencyCode}
               loading={roomTypeResource.loading}
               error={roomTypeResource.error}
@@ -258,17 +265,21 @@ export function RoomSettingsTab({ currencyCode }: { currencyCode: string }) {
 
           {activeSection === 'categories' && (
             <CategoriesSection
+              propertyId={propertyId ?? null}
               categories={categories}
-              onChange={setCategories}
+              loading={categoryResource.loading}
+              error={categoryResource.error}
+              onRefresh={() => categoryResource.refresh()}
             />
           )}
 
-          {activeSection === 'floors-buildings' && (
-            <FloorsBuildingsSection
-              buildings={buildings}
-              floors={floors}
-              onBuildingsChange={setBuildings}
-              onFloorsChange={setFloors}
+          {activeSection === 'amenities' && (
+            <AmenitiesSection
+              propertyId={propertyId ?? null}
+              amenities={amenities}
+              loading={amenityResource.loading}
+              error={amenityResource.error}
+              onRefresh={() => amenityResource.refresh()}
             />
           )}
 
