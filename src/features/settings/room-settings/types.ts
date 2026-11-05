@@ -1,46 +1,10 @@
 export type RoomSettingsSectionId =
   | 'room-types'
   | 'categories'
-  | 'floors-buildings'
+  | 'amenities'
   | 'occupancy'
   | 'maintenance-reasons'
   | 'status-config';
-
-export interface RoomCategory {
-  id: string;
-  code: string;
-  name: string;
-  description: string;
-  bedSetup: string;
-  maxGuests: number;
-  accessibilityTier: 'Standard' | 'Enhanced' | 'Fully Accessible (ADA)';
-  active: boolean;
-  roomCount: number;
-  badgeTone: 'info' | 'success' | 'warning' | 'neutral';
-}
-
-export interface Building {
-  id: string;
-  code: string;
-  name: string;
-  description: string;
-  totalFloors: number;
-  totalRooms: number;
-  active: boolean;
-}
-
-export interface FloorLevel {
-  id: string;
-  buildingId: string;
-  buildingName: string;
-  floorNumber: number;
-  floorName: string;
-  wing: string;
-  totalRooms: number;
-  assignedTypes: string[];
-  keycardZone: string;
-  status: 'Operational' | 'Renovation' | 'Closed';
-}
 
 export interface OccupancyConfig {
   baseOccupancy: number;

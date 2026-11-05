@@ -381,6 +381,9 @@ export interface RoomTypeDetails {
   /** Per night; the backend returns the decimal as a string. */
   baseRate: string;
   status: RoomTypeStatus;
+  /** Bed classification (a room category of the same property), if set. */
+  categoryId: string | null;
+  category: { id: string; name: string; bedSetup: string } | null;
 }
 
 export interface RoomTypeInput {
@@ -389,6 +392,8 @@ export interface RoomTypeInput {
   capacity: number;
   baseRate: number;
   status: RoomTypeStatus;
+  /** Send null to clear the bed classification. */
+  categoryId?: string | null;
 }
 
 /** Real backend calls, always scoped to one property. */
@@ -398,6 +403,58 @@ export const roomTypeApi = {
     apiRequest<RoomTypeDetails>(`/${propertyId}/rooms`, { method: 'POST', body }),
   update: async (propertyId: string, id: string, body: Partial<RoomTypeInput>) =>
     apiRequest<RoomTypeDetails>(`/${propertyId}/rooms/${id}`, { method: 'PATCH', body }),
+};
+
+/** A room category of one property as the backend stores it (`/:propertyId/room-categories`). */
+export interface RoomCategoryDetails {
+  id: string;
+  propertyId: string;
+  name: string;
+  description: string | null;
+  bedSetup: string;
+  isActive: boolean;
+}
+
+export interface RoomCategoryInput {
+  name: string;
+  description?: string;
+  bedSetup: string;
+  isActive: boolean;
+}
+
+export const roomCategoryApi = {
+  list: async (propertyId: string) => apiRequest<RoomCategoryDetails[]>(`/${propertyId}/room-categories`),
+  create: async (propertyId: string, body: RoomCategoryInput) =>
+    apiRequest<RoomCategoryDetails>(`/${propertyId}/room-categories`, { method: 'POST', body }),
+  update: async (propertyId: string, id: string, body: Partial<RoomCategoryInput>) =>
+    apiRequest<RoomCategoryDetails>(`/${propertyId}/room-categories/${id}`, { method: 'PATCH', body }),
+  remove: async (propertyId: string, id: string) =>
+    apiRequest<void>(`/${propertyId}/room-categories/${id}`, { method: 'DELETE' }),
+};
+
+/** An amenity of one property as the backend stores it (`/:propertyId/amenities`). */
+export interface AmenityDetails {
+  id: string;
+  propertyId: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+}
+
+export interface AmenityInput {
+  name: string;
+  description?: string;
+  isActive: boolean;
+}
+
+export const amenityApi = {
+  list: async (propertyId: string) => apiRequest<AmenityDetails[]>(`/${propertyId}/amenities`),
+  create: async (propertyId: string, body: AmenityInput) =>
+    apiRequest<AmenityDetails>(`/${propertyId}/amenities`, { method: 'POST', body }),
+  update: async (propertyId: string, id: string, body: Partial<AmenityInput>) =>
+    apiRequest<AmenityDetails>(`/${propertyId}/amenities/${id}`, { method: 'PATCH', body }),
+  remove: async (propertyId: string, id: string) =>
+    apiRequest<void>(`/${propertyId}/amenities/${id}`, { method: 'DELETE' }),
 };
 
 export const inventoryApi = {

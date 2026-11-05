@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import * as Lucide from 'lucide-react';
 import { formatCurrency } from '../../../lib/api/format';
 import { roomTypeApi } from '../../../lib/api/pms';
-import type { RoomTypeDetails, RoomTypeInput, RoomTypeStatus } from '../../../lib/api/pms';
+import type { RoomCategoryDetails, RoomTypeDetails, RoomTypeInput, RoomTypeStatus } from '../../../lib/api/pms';
 import { displayApiError } from '../../../lib/api/client';
 import { toast } from '../../../utils/toast';
 import type { BadgeTone } from '../../../utils/status';
@@ -16,6 +16,10 @@ interface RoomTypesSectionProps {
   /** The property whose room types are managed; null until one is chosen. */
   propertyId: string | null;
   types: RoomTypeDetails[];
+  /** The property's room categories, offered as bed classifications. */
+  categories: RoomCategoryDetails[];
+  /** The property's total number of rooms, when it has one; room types may not exceed it. */
+  totalRooms: number | null;
   currencyCode: string;
   loading: boolean;
   error: string | null;
@@ -23,13 +27,13 @@ interface RoomTypesSectionProps {
 }
 
 /** What the edit dialog works on. `id` is null while a new room type is being added. */
-interface RoomTypeForm extends RoomTypeInput {
+interface RoomTypeForm extends Omit<RoomTypeInput, 'categoryId'> {
   id: string | null;
+  /** Selected room category id; empty when none. */
+  categoryId: string;
   // The backend has no fields for these yet: they can be filled in but are not saved.
   description: string;
   maxChildren: number;
-  beds: string;
-  amenities: string;
 }
 
 const EMPTY_FORM: RoomTypeForm = {
@@ -39,10 +43,9 @@ const EMPTY_FORM: RoomTypeForm = {
   capacity: 2,
   baseRate: 4000,
   status: 'ACTIVE',
+  categoryId: '',
   description: '',
   maxChildren: 1,
-  beds: '1 King Bed',
-  amenities: 'Free Wi-Fi, AC, Smart TV',
 };
 
 const STATUS_LABEL: Record<RoomTypeStatus, string> = {
@@ -68,10 +71,9 @@ const formFromType = (t: RoomTypeDetails): RoomTypeForm => ({
   capacity: t.capacity,
   baseRate: Number(t.baseRate),
   status: t.status,
+  categoryId: t.categoryId ?? '',
   description: '',
   maxChildren: 0,
-  beds: '',
-  amenities: '',
 });
 
 const isWhole = (n: number, min: number) => Number.isInteger(n) && n >= min;
@@ -79,6 +81,8 @@ const isWhole = (n: number, min: number) => Number.isInteger(n) && n >= min;
 export function RoomTypesSection({
   propertyId,
   types,
+  categories,
+  totalRooms,
   currencyCode,
   loading,
   error,
@@ -100,6 +104,12 @@ export function RoomTypesSection({
 
   const countByStatus = (status: RoomTypeStatus) => types.filter((t) => t.status === status).length;
   const totalInventoryRooms = types.reduce((sum, t) => sum + t.roomCount, 0);
+  // Rooms the room type being edited may hold: the property total minus every other room type.
+  const allocatedElsewhere = types
+    .filter((t) => t.id !== editing?.id)
+    .reduce((sum, t) => sum + t.roomCount, 0);
+  const roomsAvailable = totalRooms ? totalRooms - allocatedElsewhere : null;
+  const unallocatedRooms = totalRooms ? totalRooms - totalInventoryRooms : null;
   const rates = types.map((t) => Number(t.baseRate));
   const lowestRate = rates.length > 0 ? Math.min(...rates) : 0;
   const highestRate = rates.length > 0 ? Math.max(...rates) : 0;
@@ -124,6 +134,12 @@ export function RoomTypesSection({
     if (!isWhole(editing.roomCount, 0)) {
       return toast('Invalid room count', { detail: 'Rooms must be a whole number, 0 or more.', tone: 'warning' });
     }
+    if (roomsAvailable !== null && editing.roomCount > roomsAvailable) {
+      return toast('Too many rooms', {
+        detail: `The property has ${totalRooms} rooms in total; only ${Math.max(roomsAvailable, 0)} are left to allocate.`,
+        tone: 'warning',
+      });
+    }
     if (!isWhole(editing.capacity, 1)) {
       return toast('Invalid capacity', { detail: 'Max guests must be a whole number, 1 or more.', tone: 'warning' });
     }
@@ -140,6 +156,7 @@ export function RoomTypesSection({
       capacity: editing.capacity,
       baseRate: editing.baseRate,
       status: editing.status,
+      categoryId: editing.categoryId || null,
     };
 
     setIsSaving(true);
@@ -175,8 +192,16 @@ export function RoomTypesSection({
           label="Physical Units"
           icon={Lucide.BedDouble}
           tone="success"
-          value={totalInventoryRooms}
-          caption="Assigned to inventory"
+          value={totalRooms ? `${totalInventoryRooms} / ${totalRooms}` : totalInventoryRooms}
+          caption={
+            unallocatedRooms === null
+              ? 'Assigned to inventory'
+              : unallocatedRooms > 0
+                ? `${unallocatedRooms} not yet allocated`
+                : unallocatedRooms === 0
+                  ? 'Fully allocated'
+                  : `${-unallocatedRooms} over the property total`
+          }
         />
 
         <StatTile
@@ -262,6 +287,7 @@ export function RoomTypesSection({
               <tr>
                 <th className="w-10 text-center">#</th>
                 <th>ROOM TYPE</th>
+                <th>BED CLASSIFICATION</th>
                 <th className="text-center">ROOMS</th>
                 <th>CAPACITY</th>
                 <th className="text-right">BASE RATE / NIGHT</th>
@@ -275,6 +301,16 @@ export function RoomTypesSection({
                   <td className="text-center font-medium text-ink-muted text-label py-3">{idx + 1}</td>
                   <td className="py-3">
                     <span className="block font-bold text-ink text-label">{t.name}</span>
+                  </td>
+                  <td className="py-3 text-label">
+                    {t.category ? (
+                      <>
+                        <span className="block font-semibold text-ink">{t.category.name}</span>
+                        <span className="block text-micro text-ink-secondary">{t.category.bedSetup}</span>
+                      </>
+                    ) : (
+                      <span className="text-ink-muted">—</span>
+                    )}
                   </td>
                   <td className="text-center tnum font-semibold text-ink text-label py-3">
                     <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted-surface text-ink font-bold">
@@ -315,7 +351,7 @@ export function RoomTypesSection({
               ))}
               {filteredTypes.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-label text-ink-muted">
+                  <td colSpan={8} className="py-8 text-center text-label text-ink-muted">
                     {loading ? 'Loading room types…' : 'No room types match the criteria.'}
                   </td>
                 </tr>
@@ -354,10 +390,18 @@ export function RoomTypesSection({
               />
             </Field>
 
-            <Field label="Number of Rooms" hint="Physical rooms of this type">
+            <Field
+              label="Number of Rooms"
+              hint={
+                roomsAvailable === null
+                  ? 'Physical rooms of this type'
+                  : `Up to ${Math.max(roomsAvailable, 0)} more of the property's ${totalRooms} rooms can be allocated`
+              }
+            >
               <TextField
                 type="number"
                 min={0}
+                max={roomsAvailable === null ? undefined : Math.max(roomsAvailable, 0)}
                 value={editing.roomCount}
                 onChange={(e) => setEditing({ ...editing, roomCount: Number(e.target.value) })}
                 className="tnum"
@@ -386,6 +430,23 @@ export function RoomTypesSection({
               </SelectField>
             </Field>
 
+            <Field label="Bed Classification" hint="From Room Categories">
+              <SelectField
+                value={editing.categoryId}
+                onChange={(e) => setEditing({ ...editing, categoryId: e.target.value })}
+              >
+                <option value="">Not classified</option>
+                {categories
+                  .filter((c) => c.isActive || c.id === editing.categoryId)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} — {c.bedSetup}
+                      {c.isActive ? '' : ' (inactive)'}
+                    </option>
+                  ))}
+              </SelectField>
+            </Field>
+
             <Field label="Max Children Allowed" hint={NOT_SAVED_HINT}>
               <TextField
                 type="number"
@@ -407,22 +468,6 @@ export function RoomTypesSection({
                 />
               </Field>
             </div>
-
-            <Field label="Bed Setup Description" hint={NOT_SAVED_HINT}>
-              <TextField
-                value={editing.beds}
-                onChange={(e) => setEditing({ ...editing, beds: e.target.value })}
-                placeholder="e.g. 1 King Bed or 2 Twin Singles"
-              />
-            </Field>
-
-            <Field label="Included Amenities (Comma-separated)" hint={NOT_SAVED_HINT}>
-              <TextField
-                value={editing.amenities}
-                onChange={(e) => setEditing({ ...editing, amenities: e.target.value })}
-                placeholder="High-Speed Wi-Fi, 55 Smart TV, Minibar, Balcony, Rain Shower"
-              />
-            </Field>
 
             <div className="flex justify-end gap-2 sm:col-span-2 pt-3 border-t border-divider">
               <Button variant="secondary" onClick={() => setEditing(null)} disabled={isSaving}>
